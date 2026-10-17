@@ -33,4 +33,25 @@ describe('Auth & Role Access Integration Tests', () => {
     expect(migrationContent).toContain("PERFORM public.grant_admin_role('destek@eternalproduction.net');");
     expect(migrationContent).not.toMatch(/DROP\s+TABLE/i);
   });
+
+  it('verifies AuthContext uses valid TLD domain (@partner.eternalproduction.net) for shadow emails', () => {
+    const authContextContent = fs.readFileSync(authContextPath, 'utf-8');
+    expect(authContextContent).toContain('@partner.eternalproduction.net');
+    expect(authContextContent).not.toContain('@partner.eternal.internal');
+  });
+
+  it('verifies invite claim clears invite token to enforce single-use tokens', () => {
+    const schemaPath = path.resolve(__dirname, '../../supabase/schema.sql');
+    const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
+    expect(schemaContent).toContain('invite_token = NULL');
+    expect(schemaContent).toContain('invite_expires_at = NULL');
+  });
+
+  it('verifies new shadow email migration 20250223000000_fix_shadow_email_domain.sql exists and is non-destructive', () => {
+    const domainMigrationPath = path.resolve(__dirname, '../../supabase/migrations/20250223000000_fix_shadow_email_domain.sql');
+    expect(fs.existsSync(domainMigrationPath)).toBe(true);
+    const domainMigrationContent = fs.readFileSync(domainMigrationPath, 'utf-8');
+    expect(domainMigrationContent).toContain('get_partner_auth_email_by_username');
+    expect(domainMigrationContent).not.toMatch(/DROP\s+TABLE/i);
+  });
 });

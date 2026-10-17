@@ -251,11 +251,19 @@ Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
 
 ### 🔴 Admin Giriş Sorunu ve Kök Nedeni:
 - **Sorun:** Admin hesabı (`destek@eternalproduction.net`) ile giriş yapılmak istendiğinde "Giriş bilgileri hatalı veya hesap bulunamadı." hatası alınıyordu.
-- **Kök Neden:** `public.partners` tablosunun boş olması nedeniyle, eğer kullanıcı ad olarak yalnızca e-posta ön ekini (`destek`) yazarsa, eski sistem partner tablosunda arama yapıyor ve bulamayınca varsayılan `destek@partner.eternal.internal` sanal e-postasına yönlendiriyordu. Ayrıca `grant_admin.sql` dosyasında kalmış olan git birleştirme işaretleri yüzünden fonksiyon çalıştırılamıyordu.
+- **Kök Neden:** `public.partners` tablosunun boş olması nedeniyle, eğer kullanıcı ad olarak yalnızca e-posta ön ekini (`destek`) yazarsa, eski sistem partner tablosunda arama yapıyor ve bulamayınca varsayılan sanal e-postaya yönlendiriyordu. Ayrıca `grant_admin.sql` dosyasında kalmış olan git birleştirme işaretleri yüzünden fonksiyon çalıştırılamıyordu.
 - **Çözüm:**
   1. `get_partner_auth_email_by_username` RPC fonksiyonu güncellenerek partner tablosunda bulunamayan durumlarda doğrudan `auth.users` üzerindeki admin hesaplarını eşleştirecek şekilde genişletildi.
   2. Admin kullanıcı adı veya e-postası doğrudan Supabase Auth ile doğrulandığından adminler için `partners` tablosunda kayıt oluşturma zorunluluğu kaldırıldı.
   3. `grant_admin.sql` temizlendi.
+
+### 🔴 Partner Davet Kabulü Sanal E-posta Geçersizlik Hatası:
+- **Sorun:** Partner daveti kabul edilirken `Email address "yusha@partner.eternal.internal" is invalid` hatası alınıyordu.
+- **Kök Neden:** Supabase Auth (GoTrue) e-posta doğrulama kuralları geçersiz TLD uzantılarını (`.internal`) reddetmektedir.
+- **Çözüm:**
+  1. Shadow e-posta alan adı `@partner.eternalproduction.net` olarak güncellendi.
+  2. Kullanıcı adı + şifre ile giriş yapısı korundu; partnerlerden gerçek e-posta istenmesi zorunluluğu getirilmedi.
+  3. `20250223000000_fix_shadow_email_domain.sql` migration dosyası eklendi.
 
 ---
 
@@ -309,7 +317,14 @@ Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
 
 ## 23. Sürüm Notları ve Yapılan Değişiklikler
 
-### v1.0.1 (Son Güncelleme)
+### v1.0.2 (Son Güncelleme)
+- Partner daveti kabul edilirken karşılaşılan `.internal` TLD e-posta doğrulama hatası (`yusha@partner.eternal.internal`) çözüldü.
+- Sanal e-posta formatı Supabase Auth standartlarına uyumlu `@partner.eternalproduction.net` alan adı ile güncellendi.
+- Kullanıcı adı + şifre giriş tasarımı, davet tokenı doğrulaması, şifre güvenlik kuralları ve tek kullanımlık token yapısı korundu.
+- `20250223000000_fix_shadow_email_domain.sql` migration dosyası eklendi.
+- Vitest test kapsamı genişletilerek 22 teste çıkarıldı ve tüm testler ile üretim derlemesi (`npm run build`) başarıyla doğrulandı.
+
+### v1.0.1
 - `grant_admin.sql` dosyasındaki git birleştirme işaretleri temizlendi.
 - Admin giriş akışı tamamen düzeltildi; `public.partners` kaydı olmadan sorunsuz giriş sağlandı.
 - `get_partner_auth_email_by_username`, `get_partner_by_invite_token` ve `claim_partner_invite` RPC fonksiyonları eklendi.
