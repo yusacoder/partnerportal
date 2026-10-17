@@ -65,7 +65,7 @@ Eternal Production Partner Portal; iş ortaklarının hesap durumlarını takip 
 
 ## 🔌 Supabase Bağlantısı ve Veritabanı Kurulumu
 
-Veritabanı tablolarını, indeksleri, RPC fonksiyonlarını ve Row Level Security (RLS) politikalarını tek adımda kurmak için:
+Veritabanı tablolarını, indeksleri, RPC fonksiyonlarını ve Row Level Security (RLS) politikalarını kurmak için sırasıyla aşağıdaki adımları izleyin:
 
 1. [Supabase Dashboard](https://supabase.com/dashboard) panelinize giriş yapın.
 2. Sol menüden **SQL Editor** sekmesine gidin.
@@ -73,8 +73,8 @@ Veritabanı tablolarını, indeksleri, RPC fonksiyonlarını ve Row Level Securi
 
 Bu işlem aşağıdaki yapıları otomatik oluşturur:
 - Tablolar: `user_roles`, `partners`, `partner_status`, `partner_status_history`, `announcements`, `announcement_reads`, `support_tickets`, `support_messages`, `support_internal_notes`, `app_settings`, `audit_logs`.
-- Saklı Prosedürler & Fonksiyonlar: `is_admin()`, `grant_admin_role()`, `get_partner_auth_email_by_username()`, `generate_ticket_number()`.
-- Tüm tablolar için **Row Level Security (RLS)** politikaları.
+- Saklı Prosedürler & Fonksiyonlar: `is_admin()`, `grant_admin_role(TEXT)`, `get_partner_auth_email_by_username()`, `generate_ticket_number()`.
+- Tüm tablolar için **Row Level Security (RLS)** politikaları ve RPC erişim kısıtlamaları.
 
 ---
 
@@ -82,29 +82,66 @@ Bu işlem aşağıdaki yapıları otomatik oluşturur:
 
 Admin yetkisi vermek hassas bir işlem olduğundan istemci (frontend) tarafından veya kullanıcının kendisi tarafından değiştirilebilen `user_metadata` alanına bakılarak verilmez. Admin rolü yalnızca güvenilir sunucu tarafındaki işlemle (`app_metadata` ve RLS korumalı `user_roles` tablosu) tanımlanır.
 
-### Adım Adım İlk Admin Hesabını Oluşturma:
+### ⚠️ PostgreSQL 42883 Hata Çözümü & Doğru Çalıştırma Yöntemi
 
-#### 1. Yöntem: Supabase Auth Üzerinden Kullanıcı Oluşturma + SQL ile Yetkilendirme
-1. Supabase Dashboard ➔ **Authentication** ➔ **Users** sekmesine gidin.
-2. **Add User** ➔ **Create User** butonuna tıklayın.
-3. Kendi yönetici e-posta adresinizi ve şifrenizi girerek kullanıcıyı oluşturun.
-4. **SQL Editor** sekmesine gidin ve aşağıdaki SQL komutunu kendi e-posta adresinizle çalıştırın:
-   ```sql
-   SELECT public.grant_admin_role('admin@eternalproduction.com');
-   ```
+Eğer `SELECT public.grant_admin_role('destek@eternalproduction.net');` komutunda `42883 — public.grant_admin_role(unknown) fonksiyonu mevcut değil` hatası alıyorsanız, bu durum fonksiyon tanımının veritabanında daha önce çalıştırılmamış olmasından veya tek başına çağrılmasından kaynaklanır.
 
-#### 2. Yöntem: Doğrudan SQL ile Kullanıcı Kaydı ve Yetkilendirme
-Eğer kullanıcınızı doğrudan SQL Editor ile oluşturup admin yapmak isterseniz, `supabase/grant_admin.sql` dosyasındaki şablonu kullanabilirsiniz:
+Bu hatayı tamamen çözmek ve admin hesabınızı yetkilendirmek için:
 
+1. Supabase Dashboard ➔ **SQL Editor** sekmesini açın.
+2. `supabase/grant_admin.sql` dosyasının tamamını yapıştırın. Dosya, `public.grant_admin_role(target_email TEXT)` fonksiyonunu otomatik olarak güvenli parametre ve erişim kısıtlamalarıyla tanımlar ve ardından çalıştırma komutunu yürütür.
+3. Çalıştırmak istediğiniz SQL dosyası: **`supabase/grant_admin.sql`** (veya tüm şema için **`supabase/schema.sql`**).
+
+#### Örnek SQL Çalıştırma (`supabase/grant_admin.sql`):
 ```sql
--- Kullanıcıya sunucu tarafında güvenli şekilde admin yetkisi verme
-SELECT public.grant_admin_role('kendi_epostaniz@domain.com');
+-- 1. Fonksiyonu Tanımla (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.grant_admin_role(target_email TEXT)
+RETURNS VOID AS $$
+DECLARE
+  target_user_id UUID;
+BEGIN
+  -- Yetkisiz istemci (RPC) çağrılarını engelle
+  IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Yetkisiz erişim: Bu işlemi gerçekleştirme yetkiniz yok.';
+  END IF;
+
+  IF target_email IS NULL OR TRIM(target_email) = '' THEN
+    RAISE EXCEPTION 'Geçersiz e-posta adresi.';
+  END IF;
+
+  SELECT id INTO target_user_id
+  FROM auth.users
+  WHERE LOWER(email) = LOWER(TRIM(target_email));
+
+  IF target_user_id IS NULL THEN
+    RAISE EXCEPTION 'Kullanıcı bulunamadı: %', target_email;
+  END IF;
+
+  -- raw_app_meta_data güncelleme
+  UPDATE auth.users
+  SET raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
+  WHERE id = target_user_id;
+
+  -- user_roles tablosunu güncelleme
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (target_user_id, 'admin')
+  ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+
+-- 2. Yetkisiz İstemci Rollerinden Çağrılmayı Engelle
+REVOKE EXECUTE ON FUNCTION public.grant_admin_role(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.grant_admin_role(TEXT) TO service_role, postgres;
+
+-- 3. Admin Rolünü Ver
+SELECT public.grant_admin_role('destek@eternalproduction.net');
 ```
 
 **Neden Bu Yöntem Güvenlidir?**
 - `grant_admin_role` fonksiyonu Supabase Auth tablosundaki `raw_app_meta_data` alanına `{"role": "admin"}` enjekte eder. İstemci JavaScript SDK'sı `app_metadata` alanını değiştiremez.
-- Aynı zamanda RLS korumalı `user_roles` tablosuna `admin` kaydı işler. Normal kullanıcıların `user_roles` tablosuna yazma veya kendilerini admin yapma yetkisi RLS kuralları ile engellenmiştir.
-- `service_role` anahtarını veya şifreleri kod içinde tutmanız gerekmez.
+- `REVOKE EXECUTE ON FUNCTION public.grant_admin_role(TEXT) FROM PUBLIC, anon, authenticated;` ifadesi ile normal kullanıcıların frontend üzerinden `supabase.rpc('grant_admin_role')` çağrısı yaparak kendilerini admin yapmaları veritabanı seviyesinde tamamen engellenmiştir.
+- Fonksiyon içinde `IF auth.uid() IS NOT NULL AND NOT public.is_admin()` kontrolü ile ikinci bir güvenlik katmanı eklenmiştir.
+- `service_role` anahtarını veya gizli şifreleri frontend koduna eklemeye gerek kalmaz.
 
 ---
 

@@ -173,13 +173,24 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- GÜVENLİ ADMIN YETKİSİ VERME FONKSİYONU
--- Bu fonksiyon yalnızca Supabase SQL Editor üzerinden veya servis rolüyle çalıştırılabilir.
+-- Bu fonksiyon yalnızca Supabase SQL Editor üzerinden, postgres / service_role yetkisiyle veya yetkili admin kullanıcılarca çalıştırılabilir.
 CREATE OR REPLACE FUNCTION public.grant_admin_role(target_email TEXT)
 RETURNS VOID AS $$
 DECLARE
   target_user_id UUID;
 BEGIN
-  SELECT id INTO target_user_id FROM auth.users WHERE LOWER(email) = LOWER(TRIM(target_email));
+  -- Normal kullanıcıların client / RPC üzerinden kendilerine veya başkalarına admin yetkisi vermesini engelle
+  IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Yetkisiz erişim: Bu işlemi gerçekleştirme yetkiniz yok.';
+  END IF;
+
+  IF target_email IS NULL OR TRIM(target_email) = '' THEN
+    RAISE EXCEPTION 'Geçersiz e-posta adresi.';
+  END IF;
+
+  SELECT id INTO target_user_id
+  FROM auth.users
+  WHERE LOWER(email) = LOWER(TRIM(target_email));
 
   IF target_user_id IS NULL THEN
     RAISE EXCEPTION 'Kullanıcı bulunamadı: %', target_email;
@@ -196,7 +207,11 @@ BEGIN
   ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
 
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+
+-- Güvenlik: Normal (anonim ve varsayılan authenticated) kullanıcıların RPC ile bu fonksiyonu çağırmasını engelle
+REVOKE EXECUTE ON FUNCTION public.grant_admin_role(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.grant_admin_role(TEXT) TO service_role, postgres;
 
 -- =========================================================
 -- ROW LEVEL SECURITY (RLS) POLİTİKALARI
