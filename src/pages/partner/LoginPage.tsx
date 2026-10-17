@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, User, Eye, EyeOff, AlertCircle, Loader2, KeyRound, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
-  const { loginWithUsername, isDbConnected } = useAuth();
+  const { loginWithUsername, isDbConnected, user, role } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState('');
@@ -12,6 +12,16 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && role) {
+      if (role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/partner/dashboard', { replace: true });
+      }
+    }
+  }, [user, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +44,11 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await loginWithUsername(username, password);
       if (res.success) {
-        navigate('/partner/dashboard');
+        if (res.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/partner/dashboard');
+        }
       } else {
         setErrorMessage(res.error || 'Giriş yapılamadı. Kullanıcı adı veya şifre hatalı.');
       }
@@ -91,7 +105,7 @@ export const LoginPage: React.FC = () => {
           {/* Username Field */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Kullanıcı Adı
+              Kullanıcı Adı veya E-posta
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
@@ -102,7 +116,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Örn: partner_kullanici"
+                placeholder="Kullanıcı adı veya admin e-postası"
                 className="w-full pl-10 pr-4 py-3 bg-[#0a0a0c] border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
               />
             </div>

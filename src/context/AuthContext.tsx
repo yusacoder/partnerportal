@@ -11,8 +11,8 @@ interface AuthContextType {
   partner: Partner | null;
   isLoading: boolean;
   isDbConnected: boolean;
-  loginWithUsername: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithEmail: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithUsername: (username: string, pass: string) => Promise<{ success: boolean; role?: UserRole; error?: string }>;
+  loginWithEmail: (email: string, pass: string) => Promise<{ success: boolean; role?: UserRole; error?: string }>;
   claimInviteAndSetPassword: (
     token: string,
     password: string
@@ -31,17 +31,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const isDbConnected = isSupabaseConfigured();
 
-  const fetchRoleAndPartner = useCallback(async (authUser: User) => {
-    if (!isDbConnected) return;
+  const fetchRoleAndPartner = useCallback(async (authUser: User): Promise<UserRole> => {
+    if (!isDbConnected) return 'partner';
 
     try {
+      // 1. Check app_metadata (trusted server-side auth metadata, cannot be edited by client)
+      const isAppAdmin = authUser.app_metadata?.role === 'admin';
+
+      // 2. Check user_roles table (protected by RLS)
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', authUser.id)
         .maybeSingle();
 
-      const userRole: UserRole = roleData?.role || 'partner';
+      const isDbAdmin = roleData?.role === 'admin';
+
+      // Assign admin if either app_metadata or protected user_roles grants admin
+      const userRole: UserRole = (isAppAdmin || isDbAdmin) ? 'admin' : (roleData?.role as UserRole || 'partner');
       setRole(userRole);
 
       if (userRole === 'partner') {
@@ -50,8 +57,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setPartner(null);
       }
+
+      return userRole;
     } catch (err) {
       console.error('Error loading user role/profile:', err);
+      const fallbackRole: UserRole = authUser.app_metadata?.role === 'admin' ? 'admin' : 'partner';
+      setRole(fallbackRole);
+      return fallbackRole;
     }
   }, [isDbConnected]);
 
@@ -90,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [isDbConnected, fetchRoleAndPartner]);
 
-  const loginWithEmail = async (email: string, pass: string) => {
+  const loginWithEmail = async (email: string, pass: string): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
     if (!isDbConnected) {
       return { success: false, error: 'Veritabanı bağlantısı yapılandırılmamış.' };
     }
@@ -105,15 +117,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Giriş bilgileri hatalı veya hesap bulunamadı.' };
       }
 
-      await fetchRoleAndPartner(data.user);
-      return { success: true };
+      const userRole = await fetchRoleAndPartner(data.user);
+      return { success: true, role: userRole };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Giriş sırasında beklenmeyen bir hata oluştu.';
       return { success: false, error: msg };
     }
   };
 
-  const loginWithUsername = async (username: string, pass: string) => {
+  const loginWithUsername = async (username: string, pass: string): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
     if (!isDbConnected) {
       return { success: false, error: 'Veritabanı bağlantısı yapılandırılmamış.' };
     }
