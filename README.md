@@ -82,14 +82,14 @@ Proje, kimlik doğrulama (Authentication) ve veritabanı (Database) işlemleri i
 
 ### Çevre Değişkenleri (.env)
 
-Projenin kök dizininde `.env` isimli bir dosya oluşturun ve Supabase projenizden alacağınız bilgileri aşağıdaki gibi ekleyin:
+Projenin kök dizininde `.env` isimli bir dosya oluşturun ve Supabase projenizden alacağınız `Project URL` ve `Publishable Key` (Anon Key) bilgilerini aşağıdaki gibi ekleyin. Güvenlik nedeniyle gizli anahtarlar (Secret Key / Service Role Key) kesinlikle istemci taraflı `.env` dosyasında kullanılmamalı ve `.env` dosyası Git deposuna yüklenmemelidir (`.gitignore` dosyasında tanımlıdır).
 
 ```env
-VITE_SUPABASE_URL=https://sizin-supabase-proje-id.supabase.co
-VITE_SUPABASE_ANON_KEY=sizin-supabase-anon-keyiniz
+VITE_SUPABASE_URL=https://nhodgeqiatvxhcenczbz.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_nCOTIAE_nuLILIC7LI2K6A_xT-FBd79
 ```
 
-> **Not:** `.env` dosyasını oluşturduktan sonra `npm run dev` sunucusunu yeniden başlatmanız gerekebilir.
+> **Not:** `.env` dosyasını oluşturduktan veya değiştirdikten sonra `npm run dev` sunucusunu yeniden başlatmanız gerekmektedir.
 
 ---
 
