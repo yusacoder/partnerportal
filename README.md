@@ -2,6 +2,9 @@
 
 Bu proje, Eternal Production partnerleri ve yöneticileri (admin) için geliştirilmiş modern, performanslı ve güvenli bir web portalıdır. React, TypeScript, Vite, Tailwind CSS ve Supabase kullanılarak inşa edilmiştir.
 
+**Canlı Adres:** [https://partner.eternalproduction.net/](https://partner.eternalproduction.net/)
+**Yönetici Paneli:** [https://partner.eternalproduction.net/admin](https://partner.eternalproduction.net/admin)
+
 ---
 
 ## 📋 İçindekiler
@@ -260,9 +263,10 @@ Vercel, Vite projelerini otomatik algılar. Ayarlar varsayılan olarak şu şeki
 - **Output Directory:** `dist`
 - **Install Command:** `npm install`
 
-### Adım 4: Yayınlama (Deploy)
+### Adım 4: Yayınlama (Deploy) & Özel Domain
 1. **"Deploy"** butonuna tıklayın.
-2. Vercel projeyi derleyecek ve birkaç dakika içinde size özel bir `.vercel.app` alan adı üretecektir.
+2. Vercel projeyi derleyecek ve yayına alacaktır.
+3. **Domain Ayarları:** Proje canlı adresi [https://partner.eternalproduction.net/](https://partner.eternalproduction.net/) olarak tanımlanmıştır. Yönetici paneline doğrudan [https://partner.eternalproduction.net/admin](https://partner.eternalproduction.net/admin) adresi üzerinden erişilebilir.
 
 > **Sorun Giderme:**  
 > Sitede "Veritabanı bağlantısı yapılandırılmamıştır" hatası alırsanız, Vercel **Settings > Environment Variables** bölümünde `VITE_SUPABASE_URL` ve `VITE_SUPABASE_ANON_KEY` değişkenlerinin tanımlı olduğunu kontrol edip **Deployments** sekmesinden **"Redeploy"** yapın.
