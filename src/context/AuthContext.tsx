@@ -146,16 +146,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!rpcError && rpcData && rpcData.length > 0) {
         authEmail = rpcData[0].email;
         isActive = rpcData[0].is_active;
+      } else if (cleanUsername.includes('@')) {
+        authEmail = cleanUsername;
       } else {
         authEmail = `${cleanUsername}@partner.eternal.internal`;
       }
 
       if (!isActive) {
         return { success: false, error: 'Hesabınız pasif duruma getirilmiştir. Lütfen ajans ile iletişime geçin.' };
-      }
-
-      if (!authEmail && cleanUsername.includes('@')) {
-        authEmail = cleanUsername;
       }
 
       const res = await loginWithEmail(authEmail, pass);

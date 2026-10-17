@@ -1,8 +1,9 @@
 -- =========================================================
 -- Eternal Production Partner Portal - Admin Hesabı Tanımlama Komutu
 -- =========================================================
--- Bu SQL dosyası, grant_admin_role fonksiyonunu oluşturur/günceller ve
--- belirtilen e-posta adresine güvenli bir şekilde admin yetkisi verir.
+-- Bu SQL dosyası, grant_admin_role ve get_partner_auth_email_by_username
+-- fonksiyonlarını oluşturur/günceller ve belirtilen e-posta adresine
+-- güvenli bir şekilde admin yetkisi verir.
 --
 -- Kullanımı:
 -- 1. Supabase Dashboard -> SQL Editor alanına gidin.
@@ -11,8 +12,38 @@
 --    Örnek: SELECT public.grant_admin_role('destek@eternalproduction.net');
 -- =========================================================
 
- fix/grant-admin-role-sql-2569839834075592811
--- 1. Güvenli Admin Yetkisi Verme Fonksiyonunun Tanımlanması
+-- 1. Partner Kullanıcı Adından veya E-postadan Auth Hesabı Sorgulama Fonksiyonu
+CREATE OR REPLACE FUNCTION public.get_partner_auth_email_by_username(p_username TEXT)
+RETURNS TABLE (email TEXT, is_active BOOLEAN) AS $$
+BEGIN
+  -- 1. Partnerler tablosunda kullanıcı adına göre ara
+  RETURN QUERY
+  SELECT
+    au.email::text,
+    p.is_active
+  FROM public.partners p
+  JOIN auth.users au ON au.id = p.auth_user_id
+  WHERE LOWER(p.username) = LOWER(TRIM(p_username))
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN;
+  END IF;
+
+  -- 2. Eğer p_username bir e-posta adresi ise ('@' içeriyorsa), auth.users tablosundan doğrudan kontrol et
+  IF POSITION('@' IN p_username) > 0 THEN
+    RETURN QUERY
+    SELECT
+      au.email::text,
+      true AS is_active
+    FROM auth.users au
+    WHERE LOWER(au.email) = LOWER(TRIM(p_username))
+    LIMIT 1;
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+
+-- 2. Güvenli Admin Yetkisi Verme Fonksiyonunun Tanımlanması
 CREATE OR REPLACE FUNCTION public.grant_admin_role(target_email TEXT)
 RETURNS VOID AS $$
 DECLARE
@@ -48,12 +79,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
--- 2. İstemci Rollerinden Çağrılmayı Engelle (Yetkisiz Kullanımı Önler)
+-- 3. İstemci Rollerinden Çağrılmayı Engelle (Yetkisiz Kullanımı Önler)
 REVOKE EXECUTE ON FUNCTION public.grant_admin_role(TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.grant_admin_role(TEXT) TO service_role, postgres;
 
--- 3. Admin yetkisi verilecek hesabı çalıştırın:
-=======
--- Admin yetkisi vermek istediğiniz e-posta adresini aşağıya yazın:
-main
+-- 4. Admin yetkisi verilecek hesabı çalıştırın:
 SELECT public.grant_admin_role('destek@eternalproduction.net');

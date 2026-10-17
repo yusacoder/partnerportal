@@ -161,6 +161,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 CREATE OR REPLACE FUNCTION public.get_partner_auth_email_by_username(p_username TEXT)
 RETURNS TABLE (email TEXT, is_active BOOLEAN) AS $$
 BEGIN
+  -- 1. Onlarca partner kaydı arasından kullanıcı adına göre ara
   RETURN QUERY
   SELECT
     au.email::text,
@@ -169,8 +170,23 @@ BEGIN
   JOIN auth.users au ON au.id = p.auth_user_id
   WHERE LOWER(p.username) = LOWER(TRIM(p_username))
   LIMIT 1;
+
+  IF FOUND THEN
+    RETURN;
+  END IF;
+
+  -- 2. Eğer p_username bir e-posta adresi ise ('@' içeriyorsa), auth.users tablosundan doğrudan kontrol et
+  IF POSITION('@' IN p_username) > 0 THEN
+    RETURN QUERY
+    SELECT
+      au.email::text,
+      true AS is_active
+    FROM auth.users au
+    WHERE LOWER(au.email) = LOWER(TRIM(p_username))
+    LIMIT 1;
+  END IF;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 -- GÜVENLİ ADMIN YETKİSİ VERME FONKSİYONU
 -- Bu fonksiyon yalnızca Supabase SQL Editor üzerinden, postgres / service_role yetkisiyle veya yetkili admin kullanıcılarca çalıştırılabilir.
