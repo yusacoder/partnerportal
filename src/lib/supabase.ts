@@ -1,20 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const defaultUrl = 'https://nhodgeqiatvxhcenczbz.supabase.co';
+const defaultAnonKey = 'sb_publishable_nCOTIAE_nuLILIC7LI2K6A_xT-FBd79';
+
+const rawUrl = import.meta.env.VITE_SUPABASE_URL || defaultUrl;
+const rawAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || defaultAnonKey;
+
+// Sanitize URL if user provided full REST endpoint or trailing slashes
+const cleanUrl = rawUrl
+  .replace(/\/rest\/v1\/?$/, '')
+  .replace(/\/+$/, '');
 
 export const isSupabaseConfigured = (): boolean => {
   return (
-    Boolean(supabaseUrl) &&
-    Boolean(supabaseAnonKey) &&
-    supabaseUrl !== 'https://your-supabase-url.supabase.co' &&
-    supabaseAnonKey !== 'your-anon-key'
+    Boolean(cleanUrl) &&
+    Boolean(rawAnonKey) &&
+    cleanUrl !== 'https://your-supabase-url.supabase.co' &&
+    rawAnonKey !== 'your-anon-key'
   );
 };
 
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder',
+  cleanUrl,
+  rawAnonKey,
   {
     auth: {
       persistSession: true,
