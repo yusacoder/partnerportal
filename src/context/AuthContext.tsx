@@ -152,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authEmail = rpcData[0].email;
         isActive = rpcData[0].is_active;
       } else {
-        authEmail = `${cleanUsername}@partner.eternal.internal`;
+        authEmail = `${cleanUsername}@partner.eternalproduction.net`;
       }
 
       if (!isActive) {
@@ -199,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Davet bağlantısının süresi dolmuş.' };
       }
 
-      const shadowEmail = `${partnerData.username.toLowerCase()}@partner.eternal.internal`;
+      const shadowEmail = `${partnerData.username.toLowerCase()}@partner.eternalproduction.net`;
 
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: shadowEmail,
