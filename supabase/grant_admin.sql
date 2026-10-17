@@ -8,4 +8,4 @@
 -- =========================================================
 
 -- Admin yetkisi vermek istediğiniz e-posta adresini aşağıya yazın:
-SELECT public.grant_admin_role('BURAYA_ADMIN_EPOSTA_ADRESINIZI_YAZIN');
+SELECT public.grant_admin_role('destek@eternalproduction.net');
