@@ -13,8 +13,9 @@ Bu proje, Eternal Production partnerleri ve yöneticileri (admin) için gelişti
 6. [Supabase Bağlantısı ve Veritabanı Kurulumu](#supabase-bağlantısı-ve-veritabanı-kurulumu)
    - [Çevre Değişkenleri (.env)](#çevre-değişkenleri-env)
    - [Veritabanı Tablo Şeması (SQL)](#veritabanı-tablo-şeması-sql)
-7. [Sitenin Çalışma Mantığı ve Sayfalar](#sitenin-çalışma-mantığı-ve-sayfalar)
-8. [Testler ve Derleme](#testler-ve-derleme)
+7. [Vercel Deployment (Yayınlama) Rehberi](#vercel-deployment-yayınlama-rehberi)
+8. [Sitenin Çalışma Mantığı ve Sayfalar](#sitenin-çalışma-mantığı-ve-sayfalar)
+9. [Testler ve Derleme](#testler-ve-derleme)
 
 ---
 
@@ -82,14 +83,19 @@ Proje, kimlik doğrulama (Authentication) ve veritabanı (Database) işlemleri i
 
 ### Çevre Değişkenleri (.env)
 
-Projenin kök dizininde `.env` isimli bir dosya oluşturun ve Supabase projenizden alacağınız `Project URL` ve `Publishable Key` (Anon Key) bilgilerini aşağıdaki gibi ekleyin. Güvenlik nedeniyle gizli anahtarlar (Secret Key / Service Role Key) kesinlikle istemci taraflı `.env` dosyasında kullanılmamalı ve `.env` dosyası Git deposuna yüklenmemelidir (`.gitignore` dosyasında tanımlıdır).
+Projenin kök dizininde `.env` isimli bir dosya oluşturun ve Supabase bilgilerinizi ekleyin.
+
+> **Önemli URL Format Notu:**
+> Supabase Project URL adresiniz `https://<proje-id>.supabase.co` formatında olmalıdır. `.../rest/v1/` eklenmiş haldeki adresler istemci kodunda otomatik temizlenir, ancak önerilen kullanım yalnızca ana domain adını girmektir.
 
 ```env
 VITE_SUPABASE_URL=https://nhodgeqiatvxhcenczbz.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_nCOTIAE_nuLILIC7LI2K6A_xT-FBd79
 ```
 
-> **Not:** `.env` dosyasını oluşturduktan veya değiştirdikten sonra `npm run dev` sunucusunu yeniden başlatmanız gerekmektedir.
+> **Güvenlik Notu:**
+> 1. `.env` dosyasını asla GitHub veya versiyon kontrol sistemine yüklemeyin (`.gitignore` dosyasında `.env` yer almaktadır).
+> 2. `Secret Key` (Service Role Key) tarayıcı/istemci tarafında kullanılmamalıdır. Yalnızca `Publishable Key` (Anon Key) kullanılmalıdır.
 
 ---
 
@@ -224,6 +230,42 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 ```
+
+---
+
+## 🌐 Vercel Deployment (Yayınlama) Rehberi
+
+Projeyi **Vercel** platformunda canlıya almak için aşağıdaki adımları sırasıyla takip edebilirsiniz:
+
+### Adım 1: GitHub Reposunu Bağlama
+1. [Vercel Dashboard](https://vercel.com/dashboard) adresine gidin ve hesabınıza giriş yapın.
+2. **"Add New..."** butonuna tıklayıp **"Project"** seçeneğini seçin.
+3. GitHub hesabınızı bağlayın ve bu projeyi içeren depoyu (repository) seçip **"Import"** butonuna basın.
+
+### Adım 2: Çevre Değişkenlerini (Environment Variables) Ekleme
+Vite projelerinde çevre değişkenleri derleme (build) sırasında koda enjekte edilir. Bu nedenle Vercel paneline değişkenleri eklemeniz gereklidir:
+
+1. **Environment Variables** bölümünü genişletin.
+2. Aşağıdaki iki değişkeni ekleyin:
+   - **Key:** `VITE_SUPABASE_URL`
+     **Value:** `https://nhodgeqiatvxhcenczbz.supabase.co`
+   - **Key:** `VITE_SUPABASE_ANON_KEY`
+     **Value:** `sb_publishable_nCOTIAE_nuLILIC7LI2K6A_xT-FBd79`
+3. **Save** butonuna basarak kaydedin.
+
+### Adım 3: Derleme Ayarları (Build & Output Settings)
+Vercel, Vite projelerini otomatik algılar. Ayarlar varsayılan olarak şu şekilde olmalıdır:
+- **Framework Preset:** Vite
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
+- **Install Command:** `npm install`
+
+### Adım 4: Yayınlama (Deploy)
+1. **"Deploy"** butonuna tıklayın.
+2. Vercel projeyi derleyecek ve birkaç dakika içinde size özel bir `.vercel.app` alan adı üretecektir.
+
+> **Sorun Giderme:**
+> Sitede "Veritabanı bağlantısı yapılandırılmamıştır" hatası alırsanız, Vercel **Settings > Environment Variables** bölümünde `VITE_SUPABASE_URL` ve `VITE_SUPABASE_ANON_KEY` değişkenlerinin tanımlı olduğunu kontrol edip **Deployments** sekmesinden **"Redeploy"** yapın.
 
 ---
 
