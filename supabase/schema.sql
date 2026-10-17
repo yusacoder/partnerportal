@@ -158,19 +158,42 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Partner Kullanıcı Adından E-posta ve Aktiflik Sorgulama Fonksiyonu
+-- Partner / Admin Kullanıcı Adından E-posta ve Aktiflik Sorgulama Fonksiyonu
 CREATE OR REPLACE FUNCTION public.get_partner_auth_email_by_username(p_username TEXT)
 RETURNS TABLE (email TEXT, is_active BOOLEAN) AS $$
+DECLARE
+  v_clean_username TEXT := LOWER(TRIM(p_username));
 BEGIN
+  -- 1. Öncelikli olarak partners tablosunda arama yap
   RETURN QUERY
   SELECT
     au.email::text,
     p.is_active
   FROM public.partners p
   JOIN auth.users au ON au.id = p.auth_user_id
-  WHERE LOWER(p.username) = LOWER(TRIM(p_username))
+  WHERE LOWER(p.username) = v_clean_username
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN;
+  END IF;
+
+  -- 2. Partner kaydı bulunamadıysa admin hesaplarını auth.users / user_roles üzerinden kontrol et
+  RETURN QUERY
+  SELECT
+    au.email::text,
+    true AS is_active
+  FROM auth.users au
+  LEFT JOIN public.user_roles ur ON ur.user_id = au.id
+  WHERE (ur.role = 'admin' OR (au.raw_app_meta_data->>'role') = 'admin')
+    AND (
+      LOWER(au.email) = v_clean_username
+      OR LOWER(split_part(au.email, '@', 1)) = v_clean_username
+      OR LOWER(au.raw_user_meta_data->>'username') = v_clean_username
+    )
   LIMIT 1;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 -- GÜVENLİ ADMIN YETKİSİ VERME FONKSİYONU
 -- Bu fonksiyon yalnızca Supabase SQL Editor üzerinden, postgres / service_role yetkisiyle veya yetkili admin kullanıcılarca çalıştırılabilir.

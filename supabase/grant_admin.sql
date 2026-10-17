@@ -11,7 +11,6 @@
 --    Örnek: SELECT public.grant_admin_role('destek@eternalproduction.net');
 -- =========================================================
 
- fix/grant-admin-role-sql-2569839834075592811
 -- 1. Güvenli Admin Yetkisi Verme Fonksiyonunun Tanımlanması
 CREATE OR REPLACE FUNCTION public.grant_admin_role(target_email TEXT)
 RETURNS VOID AS $$
@@ -53,7 +52,5 @@ REVOKE EXECUTE ON FUNCTION public.grant_admin_role(TEXT) FROM PUBLIC, anon, auth
 GRANT EXECUTE ON FUNCTION public.grant_admin_role(TEXT) TO service_role, postgres;
 
 -- 3. Admin yetkisi verilecek hesabı çalıştırın:
-=======
 -- Admin yetkisi vermek istediğiniz e-posta adresini aşağıya yazın:
-main
 SELECT public.grant_admin_role('destek@eternalproduction.net');
