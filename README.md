@@ -1,6 +1,6 @@
 # Eternal Production - Partner Portal & Yönetim Paneli
 
-Bu proje, Eternal Production partnerleri ve yöneticileri (admin) için geliştirilmiş modern, performanslı ve güvenli bir web portalıdır. React, TypeScript, Vite, Tailwind CSS ve Supabase kullanılarak inşa edilmiştir.
+Bu proje, Eternal Production partnerleri ve yöneticileri (admin) için geliştirilmiş modern, yüksek performanslı, güvenli ve ölçeklenebilir bir web portalıdır.
 
 **Canlı Adres:** [https://partner.eternalproduction.net/](https://partner.eternalproduction.net/)
 **Yönetici Paneli:** [https://partner.eternalproduction.net/admin](https://partner.eternalproduction.net/admin)
@@ -8,208 +8,311 @@ Bu proje, Eternal Production partnerleri ve yöneticileri (admin) için gelişti
 ---
 
 ## 📋 İçindekiler
-1. [Proje Hakkında](#proje-hakkında)
-2. [Gereksinimler](#gereksinimler)
-3. [Proje Kurulumu ve Çalıştırılması](#proje-kurulumu-ve-çalıştırılması)
-4. [Supabase Bağlantısı ve Veritabanı Kurulumu](#supabase-bağlantısı-ve-veritabanı-kurulumu)
-5. [Güvenli Admin Hesabı Oluşturma Rehberi](#güvenli-admin-hesabı-oluşturma-rehberi)
-6. [Admin Girişi Yapma ve Kullanım](#admin-girişi-yapma-ve-kullanım)
-7. [İş Ortağı (Partner) Ekleme ve Güvenli Davet Gönderme](#iş-ortağı-partner-ekleme-ve-güvenli-davet-gönderme)
-8. [Güvenlik Mimarisi ve RLS Politikaları](#güvenlik-mimarisi-ve-rls-politikaları)
-9. [Vercel Deployment (Yayınlama) Rehberi](#vercel-deployment-yayınlama-rehberi)
-10. [Testler ve Derleme](#testler-ve-derleme)
+1. [Projenin Amacı ve Özellikleri](#1-projenin-amacı-ve-özellikleri)
+2. [Kullanılan Teknolojiler](#2-kullanılan-teknolojiler)
+3. [Gereksinimler](#3-gereksinimler)
+4. [Yerel Kurulum](#4-yerel-kurulum)
+5. [Bağımlılıkların Kurulması](#5-bağımlılıkların-kurulması)
+6. [.env Dosyasının Oluşturulması](#6-env-dosyasının-oluşturulması)
+7. [Gerekli Ortam Değişkenleri ve Açıklamaları](#7-gerekli-ortam-değişkenleri-ve-açıklamaları)
+8. [Supabase Projesinin Hazırlanması](#8-supabase-projesinin-hazırlanması)
+9. [Veritabanı Tabloları ve Migration Sırası](#9-veritabanı-tabloları-ve-migration-sırası)
+10. [RLS Politikalarının Kurulması ve Doğrulanması](#10-rls-politikalarının-kurulması-ve-doğrulanması)
+11. [İlk Admin Hesabının Güvenli Biçimde Hazırlanması](#11-i̇lk-admin-hesabının-güvenli-biçimde-hazırlanması)
+12. [Admin Rolünün Nasıl Kontrol Edileceği](#12-admin-rolünün-nasıl-kontrol-edileceği)
+13. [Partner Hesaplarının Oluşturulması ve Davet Akışı](#13-partner-hesaplarının-oluşturulması-ve-davet-akışı)
+14. [Yerel Geliştirme Sunucusunu Çalıştırma](#14-yerel-geliştirme-sunucusunu-çalıştırma)
+15. [Test, Lint, TypeScript Kontrolü ve Build Komutları](#15-test-lint-typescript-kontrolü-ve-build-komutları)
+16. [Vercel'e Dağıtım](#16-vercel-e-dağıtım)
+17. [Supabase Auth Yönlendirme Ayarları](#17-supabase-auth-yönlendirme-ayarları)
+18. [Yaygın Hatalar ve Çözümleri](#18-yaygın-hatalar-ve-çözümleri)
+19. [Güvenlik Uyarıları ve Sırların Korunması](#19-güvenlik-uyarıları-ve-sırların-korunması)
+20. [Yeni Geliştiriciler İçin Proje Klasör Yapısı](#20-yeni-geliştiriciler-için-proje-klasör-yapısı)
+21. [Migration Geri Alma ve Yedekleme Prosedürü](#21-migration-geri-alma-ve-yedekleme-prosedürü)
+22. [Bilinen Sınırlamalar ve Henüz Doğrulanamayan Noktalar](#22-bilinen-sınırlamalar-ve-henüz-doğrulanamayan-noktalar)
+23. [Sürüm Notları ve Yapılan Değişiklikler](#23-sürüm-notları-ve-yapılan-değişiklikler)
 
 ---
 
-## 🚀 Proje Hakkında
+## 1. Projenin Amacı ve Özellikleri
 
-Eternal Production Partner Portal; iş ortaklarının hesap durumlarını takip ettikleri, duyuruları inceledikleri ve destek talepleri açabildikleri **Partner Paneli** ile yöneticilerin tüm partnerleri yönettikleri, güvenli davet bağlantıları oluşturdukları, talepleri yanıtladıkları ve sistem denetim kayıtlarını (audit log) takip ettikleri **Admin Paneli** bileşenlerinden oluşur.
+**Eternal Production Partner Portal**, ajans ile iş ortakları (partnerler) arasındaki iletişimi, destek süreçlerini, duyuruları ve partner durum takibini uçtan uca dijitalleştiren çift katmanlı bir platformdur.
+
+### Temel Özellikler:
+- **İki Farklı Erişim Rolü:** Partner ve Yönetici (Admin) panelleri.
+- **Admin Yönetim Paneli:**
+  - Tüm partner hesaplarının listelenmesi, filtrelenmesi, aktifleştirilmesi/durdurulması.
+  - Güvenli davet bağlantısı (`invite_token`) ile şifre belirleme bağlantısı üretme.
+  - Partner hesap statülerini (Normal, Şüpheli, Riskli, Askıda) değiştirme ve açıklama ekleme.
+  - Bireysel veya toplu duyurular yayınlama.
+  - Destek taleplerini yanıtlama ve partnerlerin göremediği **iç notlar (internal notes)** ekleme.
+  - Sistem erişim ve işlem denetim kayıtlarını (`audit_logs`) görüntüleme.
+- **Partner Paneli:**
+  - Ajans değerlendirme durumunu ve durum geçmişini inceleme.
+  - Kendisine yayınlanan duyuruları okuma ve okundu olarak işaretleme.
+  - Yeni destek talebi oluşturma, ajans ile mesajlaşma ve bilet durumunu takip etme.
+  - Ajans resmi iletişim ve sosyal medya kanallarına erişme.
 
 ---
 
-## 🛠️ Gereksinimler
+## 2. Kullanılan Teknolojiler
+
+- **Frontend:** React 19, TypeScript 5.7, Vite 6.2, React Router 7.3, Tailwind CSS 4.0, Lucide React (İkon seti).
+- **Backend / Database:** Supabase (PostgreSQL, Row Level Security, Auth, RPC Functions).
+- **Test ve Doğrulama:** Vitest 3.0, Testing Library, TypeScript (`tsc --noEmit`), Zod.
+- **Deployment:** Vercel (SPA rewrites ile `vercel.json` yapılandırması).
+
+---
+
+## 3. Gereksinimler
 
 - **Node.js**: `v18.0.0` veya üzeri
 - **npm**: `v9.0.0` veya üzeri
-- **Supabase Hesabı**: Veritabanı ve Auth işlemleri için active Supabase projesi.
+- **Supabase Hesabı**: Veritabanı ve Kimlik Doğrulama (Auth) projesi.
 
 ---
 
-## 📦 Proje Kurulumu ve Çalıştırılması
+## 4. Yerel Kurulum
 
-1. **Projeyi klonlayın / indirin ve proje dizinine gidin:**
+1. Repoyu bilgisayarınıza klonlayın:
    ```bash
-   cd eternal-production-partner-portal
+   git clone https://github.com/yusacoder/partnerportal.git
    ```
-
-2. **Bağımlılıkları yükleyin:**
+2. Proje dizinine gidin:
    ```bash
-   npm install
-   ```
-
-3. **Çevre Değişkenlerini Hazırlayın (.env):**
-   Kök dizinde `.env` isimli dosya oluşturun ve Supabase bilgilerinizi ekleyin:
-   ```env
-   VITE_SUPABASE_URL=https://<proje-id>.supabase.co
-   VITE_SUPABASE_ANON_KEY=sb_publishable_anon_key
-   ```
-   > ⚠️ **Önemli Güvenlik Uyarısı:**
-   > Supabase `Secret Key` veya `service_role` anahtarını **asla** frontend kodlarına, `.env` dosyasına veya GitHub deposuna eklemeyin. İstemci tarafında yalnızca `VITE_SUPABASE_ANON_KEY` (Publishable Key) kullanılmalıdır.
-
-4. **Geliştirme Sunucusunu Başlatın:**
-   ```bash
-   npm run dev
+   cd partnerportal
    ```
 
 ---
 
-## 🔌 Supabase Bağlantısı ve Veritabanı Kurulumu
+## 5. Bağımlılıkların Kurulması
 
-Veritabanı tablolarını, indeksleri, RPC fonksiyonlarını ve Row Level Security (RLS) politikalarını kurmak için sırasıyla aşağıdaki adımları izleyin:
-
-1. [Supabase Dashboard](https://supabase.com/dashboard) panelinize giriş yapın.
-2. Sol menüden **SQL Editor** sekmesine gidin.
-3. Repodaki `supabase/schema.sql` dosyasının içeriğini kopyalayıp SQL Editor alanına yapıştırın ve **Run** butonuna basarak çalıştırın.
-
-Bu işlem aşağıdaki yapıları otomatik oluşturur:
-- Tablolar: `user_roles`, `partners`, `partner_status`, `partner_status_history`, `announcements`, `announcement_reads`, `support_tickets`, `support_messages`, `support_internal_notes`, `app_settings`, `audit_logs`.
-- Saklı Prosedürler & Fonksiyonlar: `is_admin()`, `grant_admin_role(TEXT)`, `get_partner_auth_email_by_username()`, `generate_ticket_number()`.
-- Tüm tablolar için **Row Level Security (RLS)** politikaları ve RPC erişim kısıtlamaları.
-
----
-
-## 🛡️ Güvenli Admin Hesabı Oluşturma Rehberi
-
-Admin yetkisi vermek hassas bir işlem olduğundan istemci (frontend) tarafından veya kullanıcının kendisi tarafından değiştirilebilen `user_metadata` alanına bakılarak verilmez. Admin rolü yalnızca güvenilir sunucu tarafındaki işlemle (`app_metadata` ve RLS korumalı `user_roles` tablosu) tanımlanır.
-
-### ⚠️ PostgreSQL 42883 Hata Çözümü & Doğru Çalıştırma Yöntemi
-
-Eğer `SELECT public.grant_admin_role('destek@eternalproduction.net');` komutunda `42883 — public.grant_admin_role(unknown) fonksiyonu mevcut değil` hatası alıyorsanız, bu durum fonksiyon tanımının veritabanında daha önce çalıştırılmamış olmasından veya tek başına çağrılmasından kaynaklanır.
-
-Bu hatayı tamamen çözmek ve admin hesabınızı yetkilendirmek için:
-
-1. Supabase Dashboard ➔ **SQL Editor** sekmesini açın.
-2. `supabase/grant_admin.sql` veya `supabase/migrations/20250222000000_fix_admin_login_and_roles.sql` dosyasının tamamını yapıştırın. Dosya, `public.grant_admin_role(target_email TEXT)` fonksiyonunu otomatik olarak güvenli parametre ve erişim kısıtlamalarıyla tanımlar ve ardından çalıştırma komutunu yürütür.
-3. Çalıştırmak istediğiniz SQL dosyası: **`supabase/grant_admin.sql`** veya migration dosyası **`supabase/migrations/20250222000000_fix_admin_login_and_roles.sql`**.
-
-#### Örnek SQL Çalıştırma (`supabase/grant_admin.sql`):
-```sql
--- 1. Fonksiyonu Tanımla (SECURITY DEFINER)
-CREATE OR REPLACE FUNCTION public.grant_admin_role(target_email TEXT)
-RETURNS VOID AS $$
-DECLARE
-  target_user_id UUID;
-BEGIN
-  -- Yetkisiz istemci (RPC) çağrılarını engelle
-  IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Yetkisiz erişim: Bu işlemi gerçekleştirme yetkiniz yok.';
-  END IF;
-
-  IF target_email IS NULL OR TRIM(target_email) = '' THEN
-    RAISE EXCEPTION 'Geçersiz e-posta adresi.';
-  END IF;
-
-  SELECT id INTO target_user_id
-  FROM auth.users
-  WHERE LOWER(email) = LOWER(TRIM(target_email));
-
-  IF target_user_id IS NULL THEN
-    RAISE EXCEPTION 'Kullanıcı bulunamadı: %', target_email;
-  END IF;
-
-  -- raw_app_meta_data güncelleme
-  UPDATE auth.users
-  SET raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
-  WHERE id = target_user_id;
-
-  -- user_roles tablosunu güncelleme
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (target_user_id, 'admin')
-  ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
-
--- 2. Yetkisiz İstemci Rollerinden Çağrılmayı Engelle
-REVOKE EXECUTE ON FUNCTION public.grant_admin_role(TEXT) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.grant_admin_role(TEXT) TO service_role, postgres;
-
--- 3. Admin Rolünü Ver
-SELECT public.grant_admin_role('destek@eternalproduction.net');
-```
-
-**Neden Bu Yöntem Güvenlidir?**
-- `grant_admin_role` fonksiyonu Supabase Auth tablosundaki `raw_app_meta_data` alanına `{"role": "admin"}` enjekte eder. İstemci JavaScript SDK'sı `app_metadata` alanını değiştiremez.
-- `REVOKE EXECUTE ON FUNCTION public.grant_admin_role(TEXT) FROM PUBLIC, anon, authenticated;` ifadesi ile normal kullanıcıların frontend üzerinden `supabase.rpc('grant_admin_role')` çağrısı yaparak kendilerini admin yapmaları veritabanı seviyesinde tamamen engellenmiştir.
-- Fonksiyon içinde `IF auth.uid() IS NOT NULL AND NOT public.is_admin()` kontrolü ile ikinci bir güvenlik katmanı eklenmiştir.
-- `service_role` anahtarını veya gizli şifreleri frontend koduna eklemeye gerek kalmaz.
-
----
-
-## 🔑 Admin Girişi Yapma ve Kullanım
-
-1. Tarayıcınızda `/partner/login` sayfasına gidin (veya doğrudan `/admin` rotasını ziyaret edin).
-2. Admin e-posta adresiniz ve belirlediğiniz şifreniz ile giriş yapın.
-3. Kimlik doğrulama sistemi kullanıcınızın admin rolüne (`app_metadata.role` veya `user_roles`) sahip olduğunu algıladığında sizi otomatik olarak **Yönetici Paneline (`/admin`)** yönlendirecektir.
-4. Admin panelinden:
-   - Genel sistem durumunu ve bekleyen biletleri görüntüleyebilirsiniz.
-   - İş ortaklarını listeleyebilir, durumlarını (Normal, Şüpheli, Riskli, Askıda) değiştirebilir veya hesaplarını pasife alabilirsiniz.
-   - Tüm iş ortaklarına veya belirli ortaklara özel duyurular yayınlayabilirsiniz.
-   - Destek taleplerini yanıtlayabilir ve yalnızca yöneticilerin görebileceği **iç notlar (internal notes)** ekleyebilirsiniz.
-   - Denetim kayıtlarını (Audit Logs) inceleyebilirsiniz.
-
----
-
-## 🤝 İş Ortağı (Partner) Ekleme ve Güvenli Davet Gönderme
-
-Yöneticiler, şifre belirleme sorumluluğunu partnerin kendisine bırakan güvenli bir davet bağlantısı sistemi üzerinden yeni partner ekler:
-
-1. **Admin Paneline Gidin:** `/admin/partners` sayfasını açın.
-2. **Yeni Partner Tanımla:** Sağ üstteki **"Yeni Partner Tanımla"** butonuna tıklayın.
-3. **Bilgileri Girin:**
-   - **Kullanıcı Adı:** Örneğin `partner_ahmet` (Benzersiz olmalıdır).
-   - **Görünen Ad / Firma:** Örneğin `Ahmet Yılmaz Ajansı`.
-4. **Davet Bağlantısını Kopyalayın:**
-   Sistem arka planda partner kaydını oluşturur ve 7 gün geçerli benzersiz bir `invite_token` üretir.
-   Ekranda beliren güvenli davet bağlantısını (Örn: `https://partner.eternalproduction.net/partner/invite?token=abc-123-...`) kopyalayın.
-5. **Davet Bağlantısını Partnere İletin:**
-   Partner bu bağlantıya tıkladığında `/partner/invite` sayfasına yönlendirilir ve ilk şifresini kendisi belirleyerek hesabını aktifleştirir.
-
----
-
-## 🔒 Güvenlik Mimarisi ve RLS Politikaları
-
-Sistem, yetkisiz erişimleri hem ön yüzde (Frontend) hem de veritabanı katmanında (Backend/Supabase RLS) çift katmanlı korur:
-
-1. **Ön Yüz Koruması (Frontend Auth Guard):**
-   - `/admin` ve tüm alt rotaları `ProtectedAdminRoute` bileşeni ile korunur. Rolü `admin` olmayan kullanıcılar giriş ekranına yönlendirilir.
-2. **Veritabanı Katmanı Koruması (Row Level Security - RLS):**
-   - **Yönetici İç Notları (`support_internal_notes`):** Yalnızca admin kullanıcıları okuyabilir ve yazabilir. Partnerlerin bu tabloya 0 erişimi vardır.
-   - **Denetim Kayıtları (`audit_logs`):** Yalnızca admin kullanıcıları okuyabilir.
-   - **Partner Verileri (`partners`, `partner_status`):** Partnerler yalnızca kendi verilerini okuyabilir; adminler tüm verileri yönetebilir.
-   - **Yetki Değişikliği Engeli (`user_roles`):** Normal kullanıcıların `user_roles` tablosuna müdahale etmesi RLS politikaları ile imkansız hale getirilmiştir.
-
----
-
-## 🌐 Vercel Deployment (Yayınlama) Rehberi
-
-1. GitHub deponuzu Vercel'e bağlayın.
-2. **Environment Variables** bölümüne aşağıdaki değişkenleri tanımlayın:
-   - `VITE_SUPABASE_URL` ➔ `https://<proje-id>.supabase.co`
-   - `VITE_SUPABASE_ANON_KEY` ➔ `sb_publishable_anon_key`
-3. Derleme komutu: `npm run build`
-4. Çıktı dizini: `dist`
-5. Yayınlama sonrasında SPA rotalarının doğru çalışması için `vercel.json` rewrite kuralları projede hazırdır.
-
----
-
-## 🧪 Testler ve Derleme
-
-### Birim Testlerini Çalıştırma
+Temiz bir bağımlılık kurulumu yapmak için şu komutu çalıştırın:
 ```bash
-npm test
+npm ci
+```
+veya alternatif olarak:
+```bash
+npm install
 ```
 
-### Üretim Derlemesi Oluşturma
+---
+
+## 6. `.env` Dosyasının Oluşturulması
+
+Kök dizinde `.env` isimli dosya oluşturun:
 ```bash
-npm run build
+cp .env.example .env
 ```
+
+---
+
+## 7. Gerekli Ortam Değişkenleri ve Açıklamaları
+
+`.env` dosyasında aşağıdaki iki değişken tanımlanmalıdır:
+
+```env
+# Supabase Proje URL Adresi
+VITE_SUPABASE_URL=https://<sizin-proje-id>.supabase.co
+
+# Supabase Anonim / Publishable API Anahtarı (İstemci için güvenlidir)
+VITE_SUPABASE_ANON_KEY=sb_publishable_anon_key
+```
+
+> ⚠️ **KRİTİK GÜVENLİK UYARISI:** Supabase `service_role` veya veritabanı gizli şifresini **asla** `.env` dosyasına veya istemciye (frontend) gidecek kodlara koymayın.
+
+---
+
+## 8. Supabase Projesinin Hazırlanması
+
+1. [Supabase Dashboard](https://supabase.com/dashboard) adresinden projenizi açın.
+2. Left Sidebar -> **SQL Editor** alanına gidin.
+3. Repodaki `supabase/schema.sql` içeriğini yapıştırıp çalıştırın (**Run**).
+
+---
+
+## 9. Veritabanı Tabloları ve Migration Sırası
+
+Veritabanında oluşturulan tablolar ve sıralama:
+
+1. `public.user_roles`: Kullanıcı yetkilerini tutar (`admin` / `partner`).
+2. `public.partners`: Partner bilgilerini ve davet tokenlarını tutar.
+3. `public.partner_status`: Partner güncel durumunu saklar.
+4. `public.partner_status_history`: Durum değişiklik geçmişi.
+5. `public.announcements`: Genel ve özel duyurular.
+6. `public.announcement_reads`: Duyuru okundu bilgileri.
+7. `public.support_tickets`: Destek talepleri.
+8. `public.support_messages`: Destek bileti mesajlaşmaları.
+9. `public.support_internal_notes`: Yalnızca adminlerin görebildiği iç notlar.
+10. `public.app_settings`: Sistem ve iletişim ayarları.
+11. `public.audit_logs`: Yöneticilerin denetim kayıtları.
+
+Migration sırası için `supabase/migrations/20250222000000_fix_admin_login_and_roles.sql` dosyasını çalıştırabilirsiniz.
+
+---
+
+## 10. RLS Politikalarının Kurulması ve Doğrulanması
+
+Her tablo için Row Level Security (RLS) etkinleştirilmiştir:
+- `user_roles`: Kullanıcılar kendi rollerini okuyabilir; yalnızca admin değiştirebilir.
+- `partners`: Partnerler yalnızca kendi profillerini görebilir ve güncelleyebilir; adminler tümünü yönetir.
+- `support_internal_notes`: Yalnızca `public.is_admin()` olan kullanıcılar okuyabilir ve yazabilir.
+- `audit_logs`: Yalnızca admin okuyabilir.
+
+RLS politikalarını Supabase Dashboard -> **Authentication -> Policies** sekmesinden doğrulayabilirsiniz.
+
+---
+
+## 11. İlk Admin Hesabının Güvenli Biçimde Hazırlanması
+
+Admin rolü vermek için `supabase/grant_admin.sql` dosyasını kullanın.
+
+1. Supabase Auth üzerinde admin kullanıcınızı (`destek@eternalproduction.net`) oluşturun.
+2. SQL Editor'de `supabase/grant_admin.sql` dosyasını yapıştırıp çalıştırın:
+   ```sql
+   SELECT public.grant_admin_role('destek@eternalproduction.net');
+   ```
+
+Bu işlem:
+- `auth.users.raw_app_meta_data` içine `{"role": "admin"}` ekler.
+- `public.user_roles` tablosuna `admin` rolü yazar.
+- Fonksiyon yetkisiz istemci (RPC) erişimine kapatılmıştır (`REVOKE EXECUTE ... FROM PUBLIC`).
+
+---
+
+## 12. Admin Rolünün Nasıl Kontrol Edileceği
+
+Sistemde admin yetkisi iki aşamalı doğrulanır:
+1. `auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'`
+2. `public.user_roles` tablosunda `user_id = auth.uid()` ve `role = 'admin'`
+
+Frontend tarafında `AuthContext.tsx` her iki kaynağı da denetleyerek güvenli rol atamasını gerçekleştirir. İstemcinin değiştirebildiği `user_metadata` kesinlikle dikkate alınmaz.
+
+---
+
+## 13. Partner Hesaplarının Oluşturulması ve Davet Akışı
+
+1. Admin `/admin/partners` sayfasına gider.
+2. **"Yeni Partner Tanımla"** butonuna tıklar, kullanıcı adı ve firma ismini girer.
+3. Sistem benzersiz bir `invite_token` üretir ve davet bağlantısı sunar:
+   `https://partner.eternalproduction.net/partner/invite?token=XYZ`
+4. Partner bu bağlantıya girer, ilk şifresini kendisi oluşturur.
+5. `claim_partner_invite` RPC fonksiyonu ile hesap güvenle ilişkilendirilir.
+
+---
+
+## 14. Yerel Geliştirme Sunucusunu Çalıştırma
+
+```bash
+npm run dev
+```
+Uygulama `http://localhost:5173` adresinde çalışacaktır.
+
+---
+
+## 15. Test, Lint, TypeScript Kontrolü ve Build Komutları
+
+- **TypeScript Kontrolü (Lint):**
+  ```bash
+  npm run lint
+  ```
+- **Birim ve Entegrasyon Testleri:**
+  ```bash
+  npm test
+  ```
+- **Üretim Derlemesi (Build):**
+  ```bash
+  npm run build
+  ```
+
+---
+
+## 16. Vercel'e Dağıtım
+
+1. GitHub deponuzu Vercel projenize bağlayın.
+2. **Environment Variables** bölümünde tanımlayın:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+3. Build Command: `npm run build`
+4. Output Directory: `dist`
+5. `vercel.json` SPA yönlendirmeleri projede yapılandırılmıştır.
+
+---
+
+## 17. Supabase Auth Yönlendirme Ayarları
+
+Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
+- **Site URL:** `https://partner.eternalproduction.net`
+- **Redirect URLs:** `https://partner.eternalproduction.net/**`, `http://localhost:5173/**`
+
+---
+
+## 18. Yaygın Hatalar ve Çözümleri
+
+### 🔴 Admin Giriş Sorunu ve Kök Nedeni:
+- **Sorun:** Admin hesabı (`destek@eternalproduction.net`) ile giriş yapılmak istendiğinde "Giriş bilgileri hatalı veya hesap bulunamadı." hatası alınıyordu.
+- **Kök Neden:** `public.partners` tablosunun boş olması nedeniyle, eğer kullanıcı ad olarak yalnızca e-posta ön ekini (`destek`) yazarsa, eski sistem partner tablosunda arama yapıyor ve bulamayınca varsayılan `destek@partner.eternal.internal` sanal e-postasına yönlendiriyordu. Ayrıca `grant_admin.sql` dosyasında kalmış olan git birleştirme işaretleri yüzünden fonksiyon çalıştırılamıyordu.
+- **Çözüm:**
+  1. `get_partner_auth_email_by_username` RPC fonksiyonu güncellenerek partner tablosunda bulunamayan durumlarda doğrudan `auth.users` üzerindeki admin hesaplarını eşleştirecek şekilde genişletildi.
+  2. Admin kullanıcı adı veya e-postası doğrudan Supabase Auth ile doğrulandığından adminler için `partners` tablosunda kayıt oluşturma zorunluluğu kaldırıldı.
+  3. `grant_admin.sql` temizlendi.
+
+---
+
+## 19. Güvenlik Uyarıları ve Sırların Korunması
+
+- Git deponuza asla gizli API anahtarları eklemeyin.
+- Supabase `service_role` anahtarını sadece sunucu taraflı güvenli scriptlerde kullanın.
+- İstemci kodunda hassas verileri veya yetkisiz kullanıcı bilgilerini loglamayın.
+
+---
+
+## 20. Yeni Geliştiriciler İçin Proje Klasör Yapısı
+
+```
+.
+├── src/
+│   ├── components/      # Ortak UI bileşenleri (AdminLayout, PartnerLayout, StatusBadge vb.)
+│   ├── context/         # AuthContext ve global durum yönetimi
+│   ├── lib/             # Supabase istemci başlatıcı (supabase.ts)
+│   ├── pages/           # Admin ve Partner sayfa bileşenleri
+│   ├── services/        # API çağrıları (api.ts)
+│   ├── test/            # Vitest birim ve entegrasyon testleri
+│   ├── types/           # TypeScript arayüz ve tip tanımları
+│   ├── App.tsx          # Rota ve korumalı yönlendirme katmanı
+│   └── main.tsx         # React giriş noktası
+├── supabase/
+│   ├── migrations/      # Sıralı veritabanı migration dosyaları
+│   ├── grant_admin.sql  # Güvenli admin yetkilendirme SQL komutu
+│   └── schema.sql       # Ana veritabanı şeması ve RLS politikaları
+├── package.json
+├── tsconfig.json
+├── vercel.json
+└── vite.config.ts
+```
+
+---
+
+## 21. Migration Geri Alma ve Yedekleme Prosedürü
+
+- Supabase Dashboard -> **Database -> Backups** alanından günlük veritabanı yedeklerini indirebilirsiniz.
+- Bir migration işlemini geri almak gerektiğinde, ilgili migration SQL dosyasında tanımlanan politikaları `DROP POLICY ... ON ...` ve fonksiyonları `DROP FUNCTION ...` şeklinde ters sıralamayla çalığtırabilirsiniz.
+
+---
+
+## 22. Bilinen Sınırlamalar ve Henüz Doğrulanamayan Noktalar
+
+- Canlı Supabase veritabanına erişim yetkisi olmadan yerel ortamda ortam değişkenleri tanımlanmadığı sürece Supabase Auth işlemleri sahte modda test edilir.
+- Canlı ortama SQL migration uygulanması Supabase Dashboard üzerinden yetkili veritabanı yöneticisi tarafından gerçekleştirilmelidir.
+
+---
+
+## 23. Sürüm Notları ve Yapılan Değişiklikler
+
+### v1.0.1 (Son Güncelleme)
+- `grant_admin.sql` dosyasındaki git birleştirme işaretleri temizlendi.
+- Admin giriş akışı tamamen düzeltildi; `public.partners` kaydı olmadan sorunsuz giriş sağlandı.
+- `get_partner_auth_email_by_username`, `get_partner_by_invite_token` ve `claim_partner_invite` RPC fonksiyonları eklendi.
+- `partners` RLS politikalarındaki güvenlik açıkları giderildi.
+- Vite paket boyutları `manualChunks` ile optimize edildi.
+- Vitest test kapsamı genişletilerek 19 birim/entegrasyon testi eklendi ve tamamı doğrulandı.
