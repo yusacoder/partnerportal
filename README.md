@@ -112,14 +112,14 @@ cp .env.example .env
 `.env` dosyasında aşağıdaki iki değişken tanımlanmalıdır:
 
 ```env
-# Supabase Proje URL Adresi
+# Supabase Proje URL Adresi (Örn: https://xyz.supabase.co)
 VITE_SUPABASE_URL=https://<sizin-proje-id>.supabase.co
 
-# Supabase Anonim / Publishable API Anahtarı (İstemci için güvenlidir)
+# Supabase Anonim / Publishable API Anahtarı (İstemci tarafında güvenle kullanılır)
 VITE_SUPABASE_ANON_KEY=sb_publishable_anon_key
 ```
 
-> ⚠️ **KRİTİK GÜVENLİK UYARISI:** Supabase `service_role` veya veritabanı gizli şifresini **asla** `.env` dosyasına veya istemciye (frontend) gidecek kodlara koymayın.
+> ⚠️ **KRİTİK GÜVENLİK UYARISI:** Supabase `service_role` veya veritabanı gizli şifresini **asla** `.env` dosyasına veya istemciye (frontend) gidecek kodlara koymayın. Tüm ayrıcalıklı veritabanı işlemleri `SECURITY DEFINER` yetkili Supabase RPC fonksiyonları üzerinden güvenle yürütülür.
 
 ---
 
@@ -147,7 +147,9 @@ Veritabanında oluşturulan tablolar ve sıralama:
 10. `public.app_settings`: Sistem ve iletişim ayarları.
 11. `public.audit_logs`: Yöneticilerin denetim kayıtları.
 
-Migration sırası için `supabase/migrations/20250222000000_fix_admin_login_and_roles.sql` dosyasını çalıştırabilirsiniz.
+Migration sırası:
+1. `supabase/migrations/20250222000000_fix_admin_login_and_roles.sql`
+2. `supabase/migrations/20250222000001_fix_partner_invite_flow.sql`
 
 ---
 
@@ -155,11 +157,9 @@ Migration sırası için `supabase/migrations/20250222000000_fix_admin_login_and
 
 Her tablo için Row Level Security (RLS) etkinleştirilmiştir:
 - `user_roles`: Kullanıcılar kendi rollerini okuyabilir; yalnızca admin değiştirebilir.
-- `partners`: Partnerler yalnızca kendi profillerini görebilir ve güncelleyebilir; adminler tümünü yönetir.
+- `partners`: Partnerler yalnızca kendi profillerini görebilir ve güncelleyebilir; adminler tümünü yönetir. Unauthenticated kullanıcıların token doğrulama/kabul işlemleri RLS engeline takılmamak için `SECURITY DEFINER` RPC'ler (`get_partner_by_invite_token` ve `claim_partner_invite`) üzerinden gerçekleşir.
 - `support_internal_notes`: Yalnızca `public.is_admin()` olan kullanıcılar okuyabilir ve yazabilir.
 - `audit_logs`: Yalnızca admin okuyabilir.
-
-RLS politikalarını Supabase Dashboard -> **Authentication -> Policies** sekmesinden doğrulayabilirsiniz.
 
 ---
 
@@ -173,31 +173,34 @@ Admin rolü vermek için `supabase/grant_admin.sql` dosyasını kullanın.
    SELECT public.grant_admin_role('destek@eternalproduction.net');
    ```
 
-Bu işlem:
-- `auth.users.raw_app_meta_data` içine `{"role": "admin"}` ekler.
-- `public.user_roles` tablosuna `admin` rolü yazar.
-- Fonksiyon yetkisiz istemci (RPC) erişimine kapatılmıştır (`REVOKE EXECUTE ... FROM PUBLIC`).
-
 ---
 
 ## 12. Admin Rolünün Nasıl Kontrol Edileceği
 
 Sistemde admin yetkisi iki aşamalı doğrulanır:
 1. `auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'`
-2. `public.user_roles` tablosunda `user_id = auth.uid()` ve `role = 'admin'`
-
-Frontend tarafında `AuthContext.tsx` her iki kaynağı da denetleyerek güvenli rol atamasını gerçekleştirir. İstemcinin değiştirebildiği `user_metadata` kesinlikle dikkate alınmaz.
+2. `public.user_roles` tablosında `user_id = auth.uid()` ve `role = 'admin'`
 
 ---
 
 ## 13. Partner Hesaplarının Oluşturulması ve Davet Akışı
 
+### Davet Oluşturma (Admin Tarafı):
 1. Admin `/admin/partners` sayfasına gider.
-2. **"Yeni Partner Tanımla"** butonuna tıklar, kullanıcı adı ve firma ismini girer.
-3. Sistem benzersiz bir `invite_token` üretir ve davet bağlantısı sunar:
-   `https://partner.eternalproduction.net/partner/invite?token=XYZ`
-4. Partner bu bağlantıya girer, ilk şifresini kendisi oluşturur.
-5. `claim_partner_invite` RPC fonksiyonu ile hesap güvenle ilişkilendirilir.
+2. **"Yeni Partner Tanımla"** butonuna tıklar, benzersiz bir kullanıcı adı (örn: `partner_ahmet`) ve firma adını girer.
+3. Sistem benzersiz bir UUID `invite_token` üretir ve davet bağlantısını sunar:
+   `https://partner.eternalproduction.net/partner/invite?token=<UUID>`
+4. Davet bağlantısı kopyalanıp partner ile paylaşılır.
+
+### Davet Kabul Etme (Partner Tarafı):
+1. Partner kendisine iletilen davet bağlantısını açar.
+2. URL üzerindeki `token` parametresi otomatik okunur.
+3. Partner ilk şifresini belirler (en az 8 karakter).
+4. `claimInviteAndSetPassword` metodu çalışır:
+   - `get_partner_by_invite_token` RPC fonksiyonu ile token sorgulanır.
+   - Supabase Auth üzerinde partner için gölge e-posta (`<username>@partner.eternal.internal`) ile kimlik hesabı oluşturulur.
+   - `claim_partner_invite` RPC fonksiyonu ile veritabanında `partners.auth_user_id` güncellenir, `invite_token` temizlenir ve `user_roles` tablosuna `partner` rolü atomik olarak yazılır.
+   - Oturum açılır ve partner paneline yönlendirilir.
 
 ---
 
@@ -235,7 +238,6 @@ Uygulama `http://localhost:5173` adresinde çalışacaktır.
    - `VITE_SUPABASE_ANON_KEY`
 3. Build Command: `npm run build`
 4. Output Directory: `dist`
-5. `vercel.json` SPA yönlendirmeleri projede yapılandırılmıştır.
 
 ---
 
@@ -247,23 +249,31 @@ Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
 
 ---
 
-## 18. Yaygın Hatalar ve Çözümleri
+## 18. Yaygın Hatalar ve Sorun Giderme (Troubleshooting)
 
-### 🔴 Admin Giriş Sorunu ve Kök Nedeni:
-- **Sorun:** Admin hesabı (`destek@eternalproduction.net`) ile giriş yapılmak istendiğinde "Giriş bilgileri hatalı veya hesap bulunamadı." hatası alınıyordu.
-- **Kök Neden:** `public.partners` tablosunun boş olması nedeniyle, eğer kullanıcı ad olarak yalnızca e-posta ön ekini (`destek`) yazarsa, eski sistem partner tablosunda arama yapıyor ve bulamayınca varsayılan `destek@partner.eternal.internal` sanal e-postasına yönlendiriyordu. Ayrıca `grant_admin.sql` dosyasında kalmış olan git birleştirme işaretleri yüzünden fonksiyon çalıştırılamıyordu.
-- **Çözüm:**
-  1. `get_partner_auth_email_by_username` RPC fonksiyonu güncellenerek partner tablosunda bulunamayan durumlarda doğrudan `auth.users` üzerindeki admin hesaplarını eşleştirecek şekilde genişletildi.
-  2. Admin kullanıcı adı veya e-postası doğrudan Supabase Auth ile doğrulandığından adminler için `partners` tablosunda kayıt oluşturma zorunluluğu kaldırıldı.
-  3. `grant_admin.sql` temizlendi.
+### 🔴 "Geçersiz veya kullanılmış davet bağlantısı" Hatası ve Çözümü:
+- **Nedenler:**
+  1. Davet tokenı daha önce bir işlem sırasında tüketilmiş / `invite_token` veritabanında `NULL` yapılmış olabilir.
+  2. Davet linki kopyalanırken token karakterleri eksik kopyalanmış veya boşluk içeriyor olabilir.
+  3. `get_partner_by_invite_token` veya `claim_partner_invite` RPC fonksiyonları veritabanında güncellenmemiş olabilir.
+- **Çözüm / Sorun Giderme Adımları:**
+  - `supabase/migrations/20250222000001_fix_partner_invite_flow.sql` dosyasını Supabase SQL Editor üzerinden çalıştırarak RPC fonksiyonlarını güncelleyin.
+  - Admin panelinden partner için yeni bir davet oluşturun veya veritabanında partner kaydının `invite_token` alanını yeni bir UUID ile güncelleyin.
+  - Davet linkinin tam olarak `?token=<UUID>` formatında açıldığını kontrol edin.
+
+### 🔴 "Davet bağlantısının süresi dolmuş" Hatası:
+- Davetlerin varsayılan geçerlilik süresi 7 gündür (`invite_expires_at`). Süresi dolan davetler için admin panelinden yeni partner/davet tanımlanmalıdır.
+
+### 🔴 "Hesabınız pasif duruma getirilmiştir" Hatası:
+- Partner kaydının `is_active` değeri `false` yapılmışsa giriş veya davet kabul işlemi engellenir. Admin panelindeki **Partner Yönetimi** sayfasından hesabın aktiflik durumunu değiştirin.
 
 ---
 
 ## 19. Güvenlik Uyarıları ve Sırların Korunması
 
 - Git deponuza asla gizli API anahtarları eklemeyin.
-- Supabase `service_role` anahtarını sadece sunucu taraflı güvenli scriptlerde kullanın.
-- İstemci kodunda hassas verileri veya yetkisiz kullanıcı bilgilerini loglamayın.
+- Supabase `service_role` anahtarını istemci (frontend) kodlarına veya `.env` dosyasına asla eklemeyin.
+- İstemci kodunda hassas verileri, şifreleri veya davet tokenlarını console loglarına yazdırmayın.
 
 ---
 
@@ -296,7 +306,7 @@ Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
 ## 21. Migration Geri Alma ve Yedekleme Prosedürü
 
 - Supabase Dashboard -> **Database -> Backups** alanından günlük veritabanı yedeklerini indirebilirsiniz.
-- Bir migration işlemini geri almak gerektiğinde, ilgili migration SQL dosyasında tanımlanan politikaları `DROP POLICY ... ON ...` ve fonksiyonları `DROP FUNCTION ...` şeklinde ters sıralamayla çalığtırabilirsiniz.
+- Bir migration işlemini geri almak gerektiğinde, ilgili migration SQL dosyasında tanımlanan fonksiyonları `DROP FUNCTION IF EXISTS ...` komutuyla kaldırabilir veya önceki sürüme dönebilirsiniz.
 
 ---
 
@@ -309,10 +319,10 @@ Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
 
 ## 23. Sürüm Notları ve Yapılan Değişiklikler
 
-### v1.0.1 (Son Güncelleme)
-- `grant_admin.sql` dosyasındaki git birleştirme işaretleri temizlendi.
-- Admin giriş akışı tamamen düzeltildi; `public.partners` kaydı olmadan sorunsuz giriş sağlandı.
-- `get_partner_auth_email_by_username`, `get_partner_by_invite_token` ve `claim_partner_invite` RPC fonksiyonları eklendi.
-- `partners` RLS politikalarındaki güvenlik açıkları giderildi.
-- Vite paket boyutları `manualChunks` ile optimize edildi.
-- Vitest test kapsamı genişletilerek 19 birim/entegrasyon testi eklendi ve tamamı doğrulandı.
+### v1.0.2 (Son Güncelleme)
+- Partner davet oluşturma ve davet kabul akışındaki tüm hatalar giderildi.
+- `get_partner_by_invite_token` ve `claim_partner_invite` RPC fonksiyonları atomik doğrulama ve tüketim için güncellendi.
+- Geçersiz token, kullanılmış token, süresi dolmuş token ve pasif kullanıcı durumları için Türkçe hata mesajları ayrıştırıldı.
+- `claimInviteAndSetPassword` metodu atomik hâle getirildi, yarım kalmış kayıt riski engellendi.
+- 9 yeni test eklenerek toplam 28 test başarıyla geçti.
+- `README.md` davet akışı, ortam değişkenleri ve sorun giderme adımlarıyla güncellendi.

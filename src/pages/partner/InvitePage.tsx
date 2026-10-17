@@ -19,7 +19,7 @@ export const InvitePage: React.FC = () => {
   useEffect(() => {
     const tokenParam = searchParams.get('token');
     if (tokenParam) {
-      setToken(tokenParam);
+      setToken(tokenParam.trim());
     }
   }, [searchParams]);
 

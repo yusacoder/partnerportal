@@ -62,7 +62,7 @@ export const AdminPartnersPage: React.FC = () => {
     try {
       const res = await createPartnerAdmin(username, displayName);
       if (res.success && res.inviteToken) {
-        const fullLink = `${window.location.origin}/partner/invite?token=${res.inviteToken}`;
+        const fullLink = `${window.location.origin}/partner/invite?token=${encodeURIComponent(res.inviteToken)}`;
         setGeneratedInviteLink(fullLink);
         setUsername('');
         setDisplayName('');
