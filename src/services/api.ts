@@ -319,11 +319,12 @@ export const createPartnerAdmin = async (
 
   const inviteToken = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const cleanUsername = username.trim().toLowerCase();
 
   const { data: newPartner, error } = await supabase
     .from('partners')
     .insert({
-      username: username.trim().toLowerCase(),
+      username: cleanUsername,
       display_name: displayName.trim(),
       is_active: true,
       invite_token: inviteToken,
@@ -334,6 +335,9 @@ export const createPartnerAdmin = async (
 
   if (error || !newPartner) {
     console.error('Error creating partner:', error);
+    if (error?.code === '23505') {
+      return { success: false, error: 'Bu kullanıcı adı zaten başka bir partner tarafından kullanılıyor.' };
+    }
     return { success: false, error: error?.message || 'Partner oluşturulamadı.' };
   }
 
@@ -351,7 +355,7 @@ export const createPartnerAdmin = async (
       action: 'PARTNER_CREATED',
       entity_type: 'partners',
       entity_id: newPartner.id,
-      metadata: { username, display_name: displayName },
+      metadata: { username: cleanUsername, display_name: displayName },
     });
   }
 
