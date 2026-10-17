@@ -89,8 +89,8 @@ Eğer `SELECT public.grant_admin_role('destek@eternalproduction.net');` komutund
 Bu hatayı tamamen çözmek ve admin hesabınızı yetkilendirmek için:
 
 1. Supabase Dashboard ➔ **SQL Editor** sekmesini açın.
-2. `supabase/grant_admin.sql` dosyasının tamamını yapıştırın. Dosya, `public.grant_admin_role(target_email TEXT)` fonksiyonunu otomatik olarak güvenli parametre ve erişim kısıtlamalarıyla tanımlar ve ardından çalıştırma komutunu yürütür.
-3. Çalıştırmak istediğiniz SQL dosyası: **`supabase/grant_admin.sql`** (veya tüm şema için **`supabase/schema.sql`**).
+2. `supabase/grant_admin.sql` veya `supabase/migrations/20250222000000_fix_admin_login_and_roles.sql` dosyasının tamamını yapıştırın. Dosya, `public.grant_admin_role(target_email TEXT)` fonksiyonunu otomatik olarak güvenli parametre ve erişim kısıtlamalarıyla tanımlar ve ardından çalıştırma komutunu yürütür.
+3. Çalıştırmak istediğiniz SQL dosyası: **`supabase/grant_admin.sql`** veya migration dosyası **`supabase/migrations/20250222000000_fix_admin_login_and_roles.sql`**.
 
 #### Örnek SQL Çalıştırma (`supabase/grant_admin.sql`):
 ```sql

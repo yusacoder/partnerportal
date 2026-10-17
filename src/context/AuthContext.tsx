@@ -135,6 +135,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Lütfen geçerli bir kullanıcı adı girin.' };
     }
 
+    // Direct email authentication if user provided an email address (e.g. admin logins)
+    if (cleanUsername.includes('@')) {
+      return await loginWithEmail(cleanUsername, pass);
+    }
+
     try {
       let authEmail = '';
       let isActive = true;
@@ -154,17 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Hesabınız pasif duruma getirilmiştir. Lütfen ajans ile iletişime geçin.' };
       }
 
-      if (!authEmail && cleanUsername.includes('@')) {
-        authEmail = cleanUsername;
-      }
-
-      const res = await loginWithEmail(authEmail, pass);
-      if (!res.success && !cleanUsername.includes('@')) {
-        const retryRes = await loginWithEmail(`${cleanUsername}@partner.eternal.internal`, pass);
-        if (retryRes.success) return retryRes;
-      }
-
-      return res;
+      return await loginWithEmail(authEmail, pass);
     } catch {
       return { success: false, error: 'Kullanıcı adı doğrulanırken bir hata oluştu.' };
     }
