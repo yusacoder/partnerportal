@@ -171,13 +171,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const { data: partnerData, error: partnerErr } = await supabase
-        .from('partners')
-        .select('*')
-        .eq('invite_token', token)
-        .maybeSingle();
+      // 1. Validate invite using RPC get_partner_by_invite_token with fallback to direct table query
+      const { data: rpcPartnerData, error: rpcPartnerErr } = await supabase.rpc('get_partner_by_invite_token', {
+        p_token: token.trim(),
+      });
 
-      if (partnerErr || !partnerData) {
+      let partnerData = Array.isArray(rpcPartnerData) && rpcPartnerData.length > 0 ? rpcPartnerData[0] : null;
+
+      if (!partnerData) {
+        const { data: directData, error: directErr } = await supabase
+          .from('partners')
+          .select('*')
+          .eq('invite_token', token.trim())
+          .maybeSingle();
+
+        if (directErr || !directData) {
+          return { success: false, error: 'Geçersiz veya kullanılmış davet bağlantısı.' };
+        }
+        partnerData = directData;
+      }
+
+      if (rpcPartnerErr && !partnerData) {
         return { success: false, error: 'Geçersiz veya kullanılmış davet bağlantısı.' };
       }
 
@@ -198,7 +212,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
-      if (signUpErr || !signUpData.user) {
+      let newAuthUserId = signUpData.user?.id;
+
+      if (signUpErr || !newAuthUserId) {
         const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
           email: shadowEmail,
           password: pass,
@@ -207,28 +223,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (signInErr || !signInData.user) {
           return { success: false, error: signUpErr?.message || 'Hesap oluşturulurken hata oluştu.' };
         }
+        newAuthUserId = signInData.user.id;
       }
-
-      const newAuthUserId = signUpData.user?.id || (await supabase.auth.getUser()).data.user?.id;
 
       if (!newAuthUserId) {
         return { success: false, error: 'Kullanıcı kimliği alınamadı.' };
       }
 
-      await supabase
-        .from('partners')
-        .update({
-          auth_user_id: newAuthUserId,
-          invite_token: null,
-          invite_expires_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', partnerData.id);
-
-      await supabase.from('user_roles').upsert({
-        user_id: newAuthUserId,
-        role: 'partner',
+      // Claim invite using RPC claim_partner_invite with fallback to direct table update
+      const { error: claimRpcErr } = await supabase.rpc('claim_partner_invite', {
+        p_token: token.trim(),
+        p_auth_user_id: newAuthUserId,
       });
+
+      if (claimRpcErr) {
+        await supabase
+          .from('partners')
+          .update({
+            auth_user_id: newAuthUserId,
+            invite_token: null,
+            invite_expires_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', partnerData.id);
+
+        await supabase.from('user_roles').upsert({
+          user_id: newAuthUserId,
+          role: 'partner',
+        });
+      }
 
       await loginWithEmail(shadowEmail, pass);
 
