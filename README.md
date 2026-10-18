@@ -147,7 +147,12 @@ Veritabanında oluşturulan tablolar ve sıralama:
 10. `public.app_settings`: Sistem ve iletişim ayarları.
 11. `public.audit_logs`: Yöneticilerin denetim kayıtları.
 
-Migration sırası için `supabase/migrations/20250222000000_fix_admin_login_and_roles.sql` dosyasını çalıştırabilirsiniz.
+Migration sırası:
+1. `supabase/migrations/20250222000000_fix_admin_login_and_roles.sql`
+2. `supabase/migrations/20250223000000_fix_shadow_email_domain.sql`
+3. `supabase/migrations/20250224000000_admin_direct_user_creation.sql`
+
+> 💡 **Önemli Not:** Yeni bir migration uygulandıktan sonra PostgREST API şema önbelleğini yenilemek için SQL Editor'de `NOTIFY pgrst, 'reload schema';` komutunu çalıştırın.
 
 ---
 
@@ -251,6 +256,20 @@ Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
 ---
 
 ## 18. Yaygın Hatalar ve Çözümleri
+
+### 🔴 Şema Önbelleğinde `admin_create_partner_user` Fonksiyonu Bulunamadı Hatası:
+- **Sorun:** Partner oluştururken `Şema önbelleğinde public.admin_create_partner_user(...) fonksiyonu bulunamadı` veya PostgREST `PGRST202` hatası alınıyor.
+- **Kök Neden:**
+  1. `20250224000000_admin_direct_user_creation.sql` migration dosyası canlı Supabase veritabanında henüz uygulanmamıştır.
+  2. Veya migration uygulandığı halde PostgREST API katmanı şema önbelleğini (schema cache) henüz güncellememiştir.
+- **Çözüm:**
+  1. Supabase Dashboard -> **SQL Editor** alanına gidin.
+  2. `supabase/migrations/20250224000000_admin_direct_user_creation.sql` içeriğini yapıştırıp **Run** butonuna basarak çalıştırın.
+  3. Şema önbelleğini derhal yenilemek için SQL Editor'de şu bildirimi çalıştırın:
+     ```sql
+     NOTIFY pgrst, 'reload schema';
+     ```
+  4. Veya Supabase Dashboard -> **Project Settings -> API** sayfasından **"Reload Schema Cache"** butonuna tıklayın.
 
 ### 🔴 Admin Giriş Sorunu ve Kök Nedeni:
 - **Sorun:** Admin hesabı (`destek@eternalproduction.net`) ile giriş yapılmak istendiğinde "Giriş bilgileri hatalı veya hesap bulunamadı." hatası alınıyordu.
