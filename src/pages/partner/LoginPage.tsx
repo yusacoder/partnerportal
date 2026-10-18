@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Lock, User, Eye, EyeOff, AlertCircle, Loader2, KeyRound, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Lock, User, Eye, EyeOff, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
@@ -171,18 +171,11 @@ export const LoginPage: React.FC = () => {
           </button>
         </form>
 
-        {/* First time activation note */}
-        <div className="pt-4 border-t border-zinc-800/80 text-center space-y-2">
+        {/* Account Info Notice */}
+        <div className="pt-4 border-t border-zinc-800/80 text-center space-y-1">
           <p className="text-xs text-zinc-500">
-            Davet bağlantısı aldınız ve ilk şifrenizi belirlemek mi istiyorsunuz?
+            Giriş bilgilerinizi ajans yöneticinizden temin edebilirsiniz.
           </p>
-          <Link
-            to="/partner/invite"
-            className="inline-flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 font-semibold transition-colors"
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Davet Bağlantısı ile Şifre Belirle</span>
-          </Link>
         </div>
       </div>
     </div>

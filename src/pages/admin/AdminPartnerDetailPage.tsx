@@ -6,12 +6,9 @@ import {
   Power,
   Loader2,
   AlertCircle,
-  Copy,
-  Check,
   MessageSquare,
   History,
   Send,
-  KeyRound,
 } from 'lucide-react';
 import { AdminLayout } from '../../components/AdminLayout';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -39,8 +36,6 @@ export const AdminPartnerDetailPage: React.FC = () => {
   const [requiredAction, setRequiredAction] = useState('');
   const [updating, setUpdating] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  const [copied, setCopied] = useState(false);
 
   const loadPartnerData = async () => {
     if (!id) return;
@@ -113,10 +108,6 @@ export const AdminPartnerDetailPage: React.FC = () => {
     }
   };
 
-  const inviteLink = partner?.invite_token
-    ? `${window.location.origin}/partner/invite?token=${partner.invite_token}`
-    : null;
-
   return (
     <AdminLayout>
       <div className="max-w-5xl mx-auto space-y-6">
@@ -164,33 +155,6 @@ export const AdminPartnerDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {inviteLink && (
-                <div className="p-4 bg-[#0a0a0c] border border-amber-800/60 rounded-xl space-y-2">
-                  <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                    <KeyRound className="w-4 h-4" />
-                    Bekleyen Davet Bağlantısı:
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={inviteLink}
-                      className="w-full p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-purple-300"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(inviteLink);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
-                      className="px-3 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold rounded-lg shrink-0 flex items-center gap-1"
-                    >
-                      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="bg-[#121318] rounded-2xl border border-zinc-800/80 p-6 space-y-4">

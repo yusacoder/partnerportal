@@ -53,6 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (userRole === 'partner') {
         const partnerProfile = await getPartnerProfile(authUser.id);
+        if (partnerProfile && partnerProfile.is_active === false) {
+          // Account is passive/suspended: immediately invalidate session
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setRole(null);
+          setPartner(null);
+          return 'partner';
+        }
         setPartner(partnerProfile);
       } else {
         setPartner(null);
@@ -159,107 +168,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Hesabınız pasif duruma getirilmiştir. Lütfen ajans ile iletişime geçin.' };
       }
 
-      return await loginWithEmail(authEmail, pass);
+      const loginRes = await loginWithEmail(authEmail, pass);
+      if (!loginRes.success) {
+        return loginRes;
+      }
+
+      // Re-verify partner account active status post login
+      if (loginRes.role === 'partner') {
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        if (currentUser) {
+          const profile = await getPartnerProfile(currentUser.id);
+          if (profile && profile.is_active === false) {
+            await supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+            setRole(null);
+            setPartner(null);
+            return { success: false, error: 'Hesabınız pasif duruma getirilmiştir. Lütfen ajans ile iletişime geçin.' };
+          }
+        }
+      }
+
+      return loginRes;
     } catch {
       return { success: false, error: 'Kullanıcı adı doğrulanırken bir hata oluştu.' };
     }
   };
 
-  const claimInviteAndSetPassword = async (token: string, pass: string) => {
-    if (!isDbConnected) {
-      return { success: false, error: 'Veritabanı bağlantısı yapılandırılmamış.' };
-    }
-
-    try {
-      // 1. Validate invite using RPC get_partner_by_invite_token with fallback to direct table query
-      const { data: rpcPartnerData, error: rpcPartnerErr } = await supabase.rpc('get_partner_by_invite_token', {
-        p_token: token.trim(),
-      });
-
-      let partnerData = Array.isArray(rpcPartnerData) && rpcPartnerData.length > 0 ? rpcPartnerData[0] : null;
-
-      if (!partnerData) {
-        const { data: directData, error: directErr } = await supabase
-          .from('partners')
-          .select('*')
-          .eq('invite_token', token.trim())
-          .maybeSingle();
-
-        if (directErr || !directData) {
-          return { success: false, error: 'Geçersiz veya kullanılmış davet bağlantısı.' };
-        }
-        partnerData = directData;
-      }
-
-      if (rpcPartnerErr && !partnerData) {
-        return { success: false, error: 'Geçersiz veya kullanılmış davet bağlantısı.' };
-      }
-
-      if (partnerData.invite_expires_at && new Date(partnerData.invite_expires_at) < new Date()) {
-        return { success: false, error: 'Davet bağlantısının süresi dolmuş.' };
-      }
-
-      const shadowEmail = `${partnerData.username.toLowerCase()}@partner.eternalproduction.net`;
-
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email: shadowEmail,
-        password: pass,
-        options: {
-          data: {
-            username: partnerData.username,
-            display_name: partnerData.display_name,
-          },
-        },
-      });
-
-      let newAuthUserId = signUpData.user?.id;
-
-      if (signUpErr || !newAuthUserId) {
-        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-          email: shadowEmail,
-          password: pass,
-        });
-
-        if (signInErr || !signInData.user) {
-          return { success: false, error: signUpErr?.message || 'Hesap oluşturulurken hata oluştu.' };
-        }
-        newAuthUserId = signInData.user.id;
-      }
-
-      if (!newAuthUserId) {
-        return { success: false, error: 'Kullanıcı kimliği alınamadı.' };
-      }
-
-      // Claim invite using RPC claim_partner_invite with fallback to direct table update
-      const { error: claimRpcErr } = await supabase.rpc('claim_partner_invite', {
-        p_token: token.trim(),
-        p_auth_user_id: newAuthUserId,
-      });
-
-      if (claimRpcErr) {
-        await supabase
-          .from('partners')
-          .update({
-            auth_user_id: newAuthUserId,
-            invite_token: null,
-            invite_expires_at: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', partnerData.id);
-
-        await supabase.from('user_roles').upsert({
-          user_id: newAuthUserId,
-          role: 'partner',
-        });
-      }
-
-      await loginWithEmail(shadowEmail, pass);
-
-      return { success: true, username: partnerData.username };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Davet kabul edilirken hata oluştu.';
-      return { success: false, error: msg };
-    }
+  const claimInviteAndSetPassword = async (_token: string, _pass: string) => {
+    return {
+      success: false,
+      error: 'Davet bağlantısı sistemi kaldırılmıştır. Lütfen yöneticiniz tarafından verilen kullanıcı adı ve şifre ile doğrudan giriş yapın.',
+    };
   };
 
   const logout = async () => {

@@ -25,10 +25,18 @@ export const AdminPartnersPage: React.FC = () => {
 
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [password, setPassword] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [generatedInviteLink, setGeneratedInviteLink] = useState<string | null>(null);
+  const [createdSummary, setCreatedSummary] = useState<{
+    username: string;
+    password: string;
+    displayName: string;
+    isActive: boolean;
+    loginUrl: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const loadPartners = async () => {
@@ -50,22 +58,35 @@ export const AdminPartnersPage: React.FC = () => {
   const handleCreatePartner = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    setGeneratedInviteLink(null);
+    setCreatedSummary(null);
 
     if (!username.trim() || !displayName.trim()) {
-      setErrorMessage('Kullanıcı adı ve görünen isim zorunludur.');
+      setErrorMessage('Kullanıcı adı ve firma adı zorunludur.');
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setErrorMessage('Şifre en az 6 karakter uzunluğunda olmalıdır.');
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const res = await createPartnerAdmin(username, displayName);
-      if (res.success && res.inviteToken) {
-        const fullLink = `${window.location.origin}/partner/invite?token=${res.inviteToken}`;
-        setGeneratedInviteLink(fullLink);
+      const res = await createPartnerAdmin(username, displayName, password, isActive);
+      if (res.success) {
+        const loginUrl = `${window.location.origin}/partner/login`;
+        setCreatedSummary({
+          username: username.trim().toLowerCase(),
+          password,
+          displayName: displayName.trim(),
+          isActive,
+          loginUrl,
+        });
         setUsername('');
         setDisplayName('');
+        setPassword('');
+        setIsActive(true);
         await loadPartners();
       } else {
         setErrorMessage(res.error || 'Partner oluşturulamadı.');
@@ -84,8 +105,10 @@ export const AdminPartnersPage: React.FC = () => {
     }
   };
 
-  const handleCopyInvite = (link: string) => {
-    navigator.clipboard.writeText(link);
+  const handleCopySummary = () => {
+    if (!createdSummary) return;
+    const textToCopy = `ETERNAL PRODUCTION PARTNER PORTAL GİRİŞ BİLGİLERİ\n\nFirma: ${createdSummary.displayName}\nKullanıcı Adı: ${createdSummary.username}\nBaşlangıç Şifresi: ${createdSummary.password}\nGiriş Adresi: ${createdSummary.loginUrl}`;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -108,20 +131,20 @@ export const AdminPartnersPage: React.FC = () => {
               Partner Yönetimi
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Ajans bünyesindeki tüm partner hesaplarının durum kontrolü, aktivasyonu ve davet yönetimi.
+              Ajans bünyesindeki partner hesaplarının tanımlanması, yönetimi ve durum takibi.
             </p>
           </div>
 
           <button
             onClick={() => {
               setShowAddModal(true);
-              setGeneratedInviteLink(null);
+              setCreatedSummary(null);
               setErrorMessage(null);
             }}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-700 hover:bg-purple-600 active:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-lg transition-colors cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
-            <span>Yeni Partner Tanımla</span>
+            <span>Yeni Partner Oluştur</span>
           </button>
         </div>
 
@@ -146,11 +169,11 @@ export const AdminPartnersPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-purple-400" />
-                Yeni Partner Tanımla ve Davet Oluştur
+                Yeni Partner Kullanıcısı Oluştur
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-xs text-zinc-400 hover:text-white"
+                className="text-xs text-zinc-400 hover:text-white cursor-pointer"
               >
                 Kapat [X]
               </button>
@@ -162,29 +185,43 @@ export const AdminPartnersPage: React.FC = () => {
               </div>
             )}
 
-            {generatedInviteLink ? (
-              <div className="p-4 bg-[#0a0a0c] border border-emerald-800/80 rounded-xl space-y-3">
+            {createdSummary ? (
+              <div className="p-5 bg-[#0a0a0c] border border-emerald-800/80 rounded-xl space-y-4">
                 <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                   <Check className="w-4 h-4" />
-                  Partner Kaydı Oluşturuldu! Güvenli Davet Bağlantısı:
+                  Partner Hesabı Başarıyla Oluşturuldu!
                 </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={generatedInviteLink}
-                    className="w-full p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-purple-300 select-all"
-                  />
+
+                <div className="space-y-2 bg-zinc-900/80 p-3.5 rounded-lg border border-zinc-800 text-xs text-zinc-200 font-mono">
+                  <div><span className="text-zinc-500">Firma / İsim:</span> {createdSummary.displayName}</div>
+                  <div><span className="text-zinc-500">Kullanıcı Adı:</span> <span className="text-purple-300 font-bold">{createdSummary.username}</span></div>
+                  <div><span className="text-zinc-500">Başlangıç Şifresi:</span> <span className="text-amber-300 font-bold">{createdSummary.password}</span></div>
+                  <div><span className="text-zinc-500">Hesap Durumu:</span> {createdSummary.isActive ? 'Aktif' : 'Pasif / Engelli'}</div>
+                  <div><span className="text-zinc-500">Giriş Adresi:</span> {createdSummary.loginUrl}</div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
                   <button
-                    onClick={() => handleCopyInvite(generatedInviteLink)}
-                    className="px-3 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold rounded-lg shrink-0 flex items-center gap-1 cursor-pointer"
+                    onClick={handleCopySummary}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
+                    {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                    <span>{copied ? 'Giriş Bilgileri Kopyalandı' : 'Giriş Bilgilerini Kopyala'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCreatedSummary(null);
+                      setShowAddModal(false);
+                    }}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Tamam
                   </button>
                 </div>
-                <p className="text-[11px] text-zinc-400">
-                  Bu davet bağlantısını partnerinize iletin. Partner bu bağlantı üzerinden ilk şifresini güvenle belirleyebilir.
+
+                <p className="text-[11px] text-zinc-500">
+                  ⚠️ **Güvenlik Notu:** Bu başlangıç şifresi veritabanında güvenli olarak hash'lenmiştir ve sonradan tekrar düz metin olarak görüntülenemez. Lütfen bilgileri partnerinize ilettiğinizden emin olun.
                 </p>
               </div>
             ) : (
@@ -213,11 +250,36 @@ export const AdminPartnersPage: React.FC = () => {
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-400">Başlangıç Şifresi</label>
+                  <input
+                    type="text"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="En az 6 karakter"
+                    className="w-full px-3 py-2.5 bg-[#0a0a0c] border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-hidden focus:border-purple-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-400">Hesap Durumu</label>
+                  <select
+                    value={isActive ? 'active' : 'passive'}
+                    onChange={(e) => setIsActive(e.target.value === 'active')}
+                    className="w-full px-3 py-2.5 bg-[#0a0a0c] border border-zinc-800 rounded-xl text-xs text-white focus:outline-hidden focus:border-purple-500"
+                  >
+                    <option value="active">Aktif (Giriş Yapabilir)</option>
+                    <option value="passive">Pasif / Engelli (Giriş Yapamaz)</option>
+                  </select>
+                </div>
+
                 <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-xl"
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-xl cursor-pointer"
                   >
                     İptal
                   </button>
@@ -227,7 +289,7 @@ export const AdminPartnersPage: React.FC = () => {
                     className="px-5 py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                    <span>Kaydet ve Davet Linki Üret</span>
+                    <span>Kullanıcıyı Oluştur</span>
                   </button>
                 </div>
               </form>
