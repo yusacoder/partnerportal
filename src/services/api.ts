@@ -311,55 +311,52 @@ export const getAllPartners = async (): Promise<(Partner & { status_info?: Partn
 
 export const createPartnerAdmin = async (
   username: string,
-  displayName: string
-): Promise<{ success: boolean; inviteToken?: string; partnerId?: string; error?: string }> => {
+  displayName: string,
+  password: string,
+  isActive: boolean = true
+): Promise<{ success: boolean; partnerId?: string; username?: string; error?: string }> => {
   if (!isSupabaseConfigured()) {
     return { success: false, error: 'Veritabanı bağlantısı bulunmuyor.' };
   }
 
-  const inviteToken = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const cleanUsername = username.trim().toLowerCase();
+  const cleanDisplayName = displayName.trim();
 
-  const { data: newPartner, error } = await supabase
-    .from('partners')
-    .insert({
-      username: cleanUsername,
-      display_name: displayName.trim(),
-      is_active: true,
-      invite_token: inviteToken,
-      invite_expires_at: expiresAt,
-    })
-    .select()
-    .single();
-
-  if (error || !newPartner) {
-    console.error('Error creating partner:', error);
-    if (error?.code === '23505') {
-      return { success: false, error: 'Bu kullanıcı adı zaten başka bir partner tarafından kullanılıyor.' };
-    }
-    return { success: false, error: error?.message || 'Partner oluşturulamadı.' };
+  if (!cleanUsername || !cleanDisplayName) {
+    return { success: false, error: 'Kullanıcı adı ve firma adı zorunludur.' };
   }
 
-  await supabase.from('partner_status').insert({
-    partner_id: newPartner.id,
-    status: 'Normal',
-    description: 'Yeni partner kaydı oluşturuldu.',
-    required_action: '',
-  });
+  if (!password || password.length < 6) {
+    return { success: false, error: 'Şifre en az 6 karakter uzunluğunda olmalıdır.' };
+  }
 
-  const { data: userData } = await supabase.auth.getUser();
-  if (userData?.user) {
-    await supabase.from('audit_logs').insert({
-      actor_user_id: userData.user.id,
-      action: 'PARTNER_CREATED',
-      entity_type: 'partners',
-      entity_id: newPartner.id,
-      metadata: { username: cleanUsername, display_name: displayName },
+  try {
+    // Call server-side RPC function admin_create_partner_user
+    const { data: rpcData, error: rpcError } = await supabase.rpc('admin_create_partner_user', {
+      p_username: cleanUsername,
+      p_display_name: cleanDisplayName,
+      p_password: password,
+      p_is_active: isActive,
     });
-  }
 
-  return { success: true, inviteToken, partnerId: newPartner.id };
+    if (rpcError) {
+      console.error('Error creating partner via RPC:', rpcError);
+      if (rpcError.message?.includes('zaten kullanılmaktadır') || rpcError.code === '23505') {
+        return { success: false, error: 'Bu kullanıcı adı zaten başka bir partner tarafından kullanılıyor.' };
+      }
+      return { success: false, error: rpcError.message || 'Partner oluşturulamadı.' };
+    }
+
+    const createdRecord = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    return {
+      success: true,
+      partnerId: createdRecord?.partner_id,
+      username: cleanUsername,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Partner oluşturulurken hata oluştu.';
+    return { success: false, error: msg };
+  }
 };
 
 export const togglePartnerActiveStatus = async (

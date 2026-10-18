@@ -54,4 +54,55 @@ describe('Auth & Role Access Integration Tests', () => {
     expect(domainMigrationContent).toContain('get_partner_auth_email_by_username');
     expect(domainMigrationContent).not.toMatch(/DROP\s+TABLE/i);
   });
+
+  it('verifies direct user creation migration 20250224000000_admin_direct_user_creation.sql exists and is non-destructive', () => {
+    const directCreationPath = path.resolve(__dirname, '../../supabase/migrations/20250224000000_admin_direct_user_creation.sql');
+    expect(fs.existsSync(directCreationPath)).toBe(true);
+    const directCreationContent = fs.readFileSync(directCreationPath, 'utf-8');
+    expect(directCreationContent).toContain('admin_create_partner_user');
+    expect(directCreationContent).toContain('public.is_admin()');
+    expect(directCreationContent).toContain('crypt(p_password, gen_salt(\'bf\'))');
+    expect(directCreationContent).not.toMatch(/DROP\s+TABLE/i);
+  });
+
+  it('verifies AuthContext blocks login for passive/suspended accounts', () => {
+    const authContextContent = fs.readFileSync(authContextPath, 'utf-8');
+    expect(authContextContent).toContain('if (!isActive) {');
+    expect(authContextContent).toContain('Hesabınız pasif duruma getirilmiştir');
+    expect(authContextContent).toContain('if (partnerProfile && partnerProfile.is_active === false) {');
+  });
+
+  it('verifies api.ts calls admin_create_partner_user RPC with password and active status', () => {
+    const apiPath = path.resolve(__dirname, '../services/api.ts');
+    const apiContent = fs.readFileSync(apiPath, 'utf-8');
+    expect(apiContent).toContain('admin_create_partner_user');
+    expect(apiContent).toContain('p_password: password');
+    expect(apiContent).toContain('p_is_active: isActive');
+  });
+
+  it('verifies frontend code does not expose or contain service_role key', () => {
+    const srcDir = path.resolve(__dirname, '../');
+    const forbiddenKeyPattern = 'SERVICE' + '_' + 'ROLE';
+    const readDirRecursively = (dir: string): string[] => {
+      let results: string[] = [];
+      const list = fs.readdirSync(dir);
+      list.forEach((file) => {
+        const filePath = path.join(dir, file);
+        const stat = fs.statSync(filePath);
+        if (stat && stat.isDirectory()) {
+          results = results.concat(readDirRecursively(filePath));
+        } else if ((filePath.endsWith('.ts') || filePath.endsWith('.tsx')) && !filePath.includes('/test/')) {
+          results.push(filePath);
+        }
+      });
+      return results;
+    };
+
+    const files = readDirRecursively(srcDir);
+    files.forEach((file) => {
+      const content = fs.readFileSync(file, 'utf-8');
+      expect(content).not.toContain(forbiddenKeyPattern);
+      expect(content).not.toMatch(/service_role\s*=\s*['"][a-zA-Z0-9_\-\.]+['"]/i);
+    });
+  });
 });

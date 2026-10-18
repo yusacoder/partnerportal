@@ -42,7 +42,7 @@ Bu proje, Eternal Production partnerleri ve yöneticileri (admin) için gelişti
 - **İki Farklı Erişim Rolü:** Partner ve Yönetici (Admin) panelleri.
 - **Admin Yönetim Paneli:**
   - Tüm partner hesaplarının listelenmesi, filtrelenmesi, aktifleştirilmesi/durdurulması.
-  - Güvenli davet bağlantısı (`invite_token`) ile şifre belirleme bağlantısı üretme.
+  - Doğrudan kullanıcı adı, başlangıç şifresi ve hesap durumu (aktif/pasif) belirleyerek partner kullanıcısı oluşturma.
   - Partner hesap statülerini (Normal, Şüpheli, Riskli, Askıda) değiştirme ve açıklama ekleme.
   - Bireysel veya toplu duyurular yayınlama.
   - Destek taleplerini yanıtlama ve partnerlerin göremediği **iç notlar (internal notes)** ekleme.
@@ -190,14 +190,17 @@ Frontend tarafında `AuthContext.tsx` her iki kaynağı da denetleyerek güvenli
 
 ---
 
-## 13. Partner Hesaplarının Oluşturulması ve Davet Akışı
+## 13. Partner Hesaplarının Oluşturulması ve Doğrudan Giriş Akışı
 
 1. Admin `/admin/partners` sayfasına gider.
-2. **"Yeni Partner Tanımla"** butonuna tıklar, kullanıcı adı ve firma ismini girer.
-3. Sistem benzersiz bir `invite_token` üretir ve davet bağlantısı sunar:
-   `https://partner.eternalproduction.net/partner/invite?token=XYZ`
-4. Partner bu bağlantıya girer, ilk şifresini kendisi oluşturur.
-5. `claim_partner_invite` RPC fonksiyonu ile hesap güvenle ilişkilendirilir.
+2. **"Yeni Partner Oluştur"** butonuna tıklar.
+3. Kullanıcı adı, firma/görünen ad, başlangıç şifresi (en az 6 karakter) ve hesap durumunu (aktif/pasif) belirler.
+4. Sunucu tarafındaki `admin_create_partner_user` RPC fonksiyonu çağrılarak:
+   - Başlangıç şifresi `crypt(p_password, gen_salt('bf'))` ile `auth.users` tablosunda güvenli biçimde hash'lenir.
+   - Parolalar hiçbir zaman düz metin olarak saklanmaz veya loglanmaz.
+   - `auth.identities`, `user_roles` (`partner`), `partners` ve `partner_status` kayıtları oluşturulur.
+5. İşlem tamamlandığında admin için tek kullanımlık özet ve **"Giriş Bilgilerini Kopyala"** seçeneği sunulur.
+6. Partner, kendisine iletilen kullanıcı adı ve şifre ile `/partner/login` adresinden doğrudan giriş yapar.
 
 ---
 
@@ -317,12 +320,15 @@ Supabase Dashboard -> **Authentication -> URL Configuration** sayfasında:
 
 ## 23. Sürüm Notları ve Yapılan Değişiklikler
 
-### v1.0.2 (Son Güncelleme)
-- Partner daveti kabul edilirken karşılaşılan `.internal` TLD e-posta doğrulama hatası (`yusha@partner.eternal.internal`) çözüldü.
-- Sanal e-posta formatı Supabase Auth standartlarına uyumlu `@partner.eternalproduction.net` alan adı ile güncellendi.
-- Kullanıcı adı + şifre giriş tasarımı, davet tokenı doğrulaması, şifre güvenlik kuralları ve tek kullanımlık token yapısı korundu.
-- `20250223000000_fix_shadow_email_domain.sql` migration dosyası eklendi.
-- Vitest test kapsamı genişletilerek 22 teste çıkarıldı ve tüm testler ile üretim derlemesi (`npm run build`) başarıyla doğrulandı.
+### v2.0.0 (Son Güncelleme - Doğrudan Kullanıcı Oluşturma Mimarisi)
+- Davet bağlantısı ve davet tokenı kabul etme akışı tamamen kaldırıldı.
+- Partner kullanıcılarının yalnızca admin panelinden doğrudan oluşturulması sağlandı.
+- Admin, yeni partner oluştururken kullanıcı adı, firma adı, başlangıç şifresi ve hesap durumunu (aktif/pasif) belirleyebilir.
+- Şifreler sunucu tarafında (`admin_create_partner_user` RPC) `crypt/bcrypt` ile hash'lenerek `auth.users` tablosunda saklanır; düz metin olarak veritabanında saklanmaz veya loglanmaz.
+- E-posta girmek zorunlu değildir; gölge auth e-postaları sunucu tarafında oluşturulur.
+- Pasif veya askıya alınmış hesapların girişi hem veritabanı RPC seviyesinde hem de AuthContext oturum kontrolünde engellenmiştir.
+- `20250224000000_admin_direct_user_creation.sql` migration dosyası eklendi.
+- Vitest test kapsamı genişletilerek 26 teste çıkarıldı; `npm test` ve `npm run build` ile tüm testler ve üretim derlemesi başarıyla doğrulandı.
 
 ### v1.0.1
 - `grant_admin.sql` dosyasındaki git birleştirme işaretleri temizlendi.
