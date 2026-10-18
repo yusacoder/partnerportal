@@ -7,11 +7,15 @@ describe('Admin Partner Creation & RPC Integration Tests', () => {
   const migrationPath = path.resolve(__dirname, '../../supabase/migrations/20250224000000_admin_direct_user_creation.sql');
   const apiPath = path.resolve(__dirname, '../services/api.ts');
   const authContextPath = path.resolve(__dirname, '../context/AuthContext.tsx');
+  const edgeFunctionPath = path.resolve(__dirname, '../../supabase/functions/admin-create-partner/index.ts');
+  const readmePath = path.resolve(__dirname, '../../README.md');
 
   const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
   const migrationContent = fs.readFileSync(migrationPath, 'utf-8');
   const apiContent = fs.readFileSync(apiPath, 'utf-8');
   const authContextContent = fs.readFileSync(authContextPath, 'utf-8');
+  const edgeFunctionContent = fs.readFileSync(edgeFunctionPath, 'utf-8');
+  const readmeContent = fs.readFileSync(readmePath, 'utf-8');
 
   it('verifies admin_create_partner_user function is defined in both schema.sql and migration file', () => {
     expect(schemaContent).toContain('CREATE OR REPLACE FUNCTION public.admin_create_partner_user');
@@ -38,12 +42,16 @@ describe('Admin Partner Creation & RPC Integration Tests', () => {
     expect(apiContent).toContain('p_is_active: isActive');
   });
 
-  it('verifies server-side admin authorization check exists inside RPC function', () => {
+  it('verifies server-side admin authorization check exists inside RPC function and Edge Function', () => {
     expect(schemaContent).toContain('IF NOT public.is_admin() THEN');
     expect(schemaContent).toContain("RAISE EXCEPTION 'Yetkisiz erişim: Bu işlemi gerçekleştirmek için yönetici yetkisi gereklidir.'");
 
     expect(migrationContent).toContain('IF NOT public.is_admin() THEN');
     expect(migrationContent).toContain("RAISE EXCEPTION 'Yetkisiz erişim: Bu işlemi gerçekleştirmek için yönetici yetkisi gereklidir.'");
+
+    // Edge Function check
+    expect(edgeFunctionContent).toContain('const isAppAdmin = callerUser.app_metadata?.role === "admin";');
+    expect(edgeFunctionContent).toContain('Yetkisiz erişim: Bu işlemi gerçekleştirmek için yönetici yetkisi gereklidir.');
   });
 
   it('verifies function permissions explicitly REVOKE from PUBLIC/anon and GRANT to authenticated/service_role', () => {
@@ -108,5 +116,12 @@ describe('Admin Partner Creation & RPC Integration Tests', () => {
       expect(schemaContent).toContain(tbl);
       expect(migrationContent).toContain(tbl);
     });
+  });
+
+  it('verifies Edge Function and migration instructions are documented in README.md', () => {
+    expect(readmeContent).toContain('20250224000000_admin_direct_user_creation.sql');
+    expect(readmeContent).toContain('supabase/functions/admin-create-partner/index.ts');
+    expect(readmeContent).toContain("NOTIFY pgrst, 'reload schema';");
+    expect(readmeContent).toContain('supabase functions deploy admin-create-partner');
   });
 });
