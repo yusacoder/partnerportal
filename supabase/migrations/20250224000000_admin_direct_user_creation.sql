@@ -239,4 +239,5 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
 
 -- Grant execution rights appropriately
+REVOKE EXECUTE ON FUNCTION public.admin_create_partner_user(TEXT, TEXT, TEXT, BOOLEAN) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_create_partner_user(TEXT, TEXT, TEXT, BOOLEAN) TO authenticated, service_role;
